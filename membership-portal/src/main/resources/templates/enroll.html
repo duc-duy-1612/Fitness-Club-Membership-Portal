@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Đăng ký gói – Fitness Club</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+</head>
+<body>
+    <header class="site-header">
+        <div class="container">
+            <a href="/" class="site-logo">Fitness<span>Club</span></a>
+            <nav class="site-nav">
+                <a href="/">Trang chủ</a>
+                <a href="/enroll" class="cta">Đăng ký gói</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="form-card">
+            <h1>Đăng ký gói hội viên</h1>
+            <p class="subtitle">Điền thông tin, chọn gói (Basic/Premium), add-on và hình thức thanh toán. Sau khi gửi, bạn có thể tải hợp đồng PDF.</p>
+
+            <form th:action="@{/enroll}" method="post">
+                <div class="form-section">
+                    <h2>Thông tin cá nhân</h2>
+                    <label>Họ *</label>
+                    <input type="text" name="firstName" required placeholder="Ví dụ: Nguyễn"/>
+
+                    <label>Tên *</label>
+                    <input type="text" name="lastName" required placeholder="Ví dụ: Văn A"/>
+
+                    <label>Ngày sinh *</label>
+                    <input type="date" name="dob" required/>
+
+                    <label>Mục tiêu sức khỏe</label>
+                    <input type="text" name="healthGoals" placeholder="Ví dụ: Giảm cân, tăng cơ, rèn sức bền"/>
+                </div>
+
+                <div class="form-section">
+                    <h2>Gói tập</h2>
+                    <label>Loại gói *</label>
+                    <select name="planType" id="planType" required>
+                        <option value="BASIC">Basic – Chỉ phòng gym, 1 chi nhánh</option>
+                        <option value="PREMIUM">Premium – Gym + Hồ bơi + Xông hơi, tất cả 5 chi nhánh</option>
+                    </select>
+
+                    <div id="branchRow" class="row">
+                        <label>Chi nhánh chính (chỉ Basic) *</label>
+                        <select name="primaryBranchId">
+                            <option value="">-- Chọn chi nhánh --</option>
+                            <option th:each="b : ${branches}" th:value="${b.id}" th:text="${b.name + (b.city != null && !b.city.isEmpty() ? ', ' + b.city : '')}">Branch</option>
+                        </select>
+                    </div>
+
+                    <label>Ngày bắt đầu *</label>
+                    <input type="date" name="startDate" required/>
+
+                    <label>Thời hạn hợp đồng *</label>
+                    <select name="contractDuration" id="contractDuration" required>
+                        <option value="MONTHLY">Hàng tháng</option>
+                        <option value="SIX_MONTH">6 tháng</option>
+                        <option value="ANNUAL">1 năm</option>
+                    </select>
+                </div>
+
+                <div class="form-section">
+                    <h2>Giỏ đăng ký – Dịch vụ thêm</h2>
+                    <label>Số buổi huấn luyện cá nhân (PT)</label>
+                    <input type="number" name="personalTrainingQty" id="personalTrainingQty" min="0" value="0" placeholder="0"/>
+
+                    <label>Thuê tủ locker (số tháng)</label>
+                    <input type="number" name="lockerRentalQty" id="lockerRentalQty" min="0" value="0" placeholder="0"/>
+                </div>
+
+                <div class="form-section">
+                    <h2>Thanh toán</h2>
+                    <label>Hình thức thanh toán *</label>
+                    <select name="billingType" id="billingType" required>
+                        <option value="MONTHLY">Thanh toán hàng tháng</option>
+                        <option value="ONE_TIME_UPFRONT">Thanh toán một lần trọn gói</option>
+                    </select>
+                </div>
+
+                <div id="totalAmountBox" class="total-amount-box">
+                    <span class="total-amount-label">Tổng thanh toán ước tính</span>
+                    <span id="totalAmountValue" class="total-amount-value">0 đ</span>
+                    <span id="totalAmountNote" class="total-amount-note"></span>
+                </div>
+
+                <button type="submit">Gửi đăng ký</button>
+            </form>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">&copy; 2026 Fitness Club – Membership Portal.</div>
+    </footer>
+
+    <script>
+        (function() {
+            var PRICE = {
+                BASIC_MONTH: 500,
+                PREMIUM_MONTH: 900,
+                PT_SESSION: 300,
+                LOCKER_MONTH: 100
+            };
+            var MONTHS = { MONTHLY: 1, SIX_MONTH: 6, ANNUAL: 12 };
+
+            function getMonths() {
+                var v = document.getElementById('contractDuration').value;
+                return MONTHS[v] || 1;
+            }
+
+            function formatMoney(k) {
+                var v = (k || 0) * 1000;
+                return v.toLocaleString('vi-VN') + ' đ';
+            }
+
+            function updateTotal() {
+                var planType = document.getElementById('planType').value;
+                var billingType = document.getElementById('billingType').value;
+                var months = getMonths();
+                var ptQty = parseInt(document.getElementById('personalTrainingQty').value, 10) || 0;
+                var lockerMonths = parseInt(document.getElementById('lockerRentalQty').value, 10) || 0;
+
+                var planPerMonth = planType === 'PREMIUM' ? PRICE.PREMIUM_MONTH : PRICE.BASIC_MONTH;
+                var planTotal = planPerMonth * months;
+                var ptTotal = PRICE.PT_SESSION * ptQty;
+                var lockerTotal = PRICE.LOCKER_MONTH * (lockerMonths > 0 ? months : 0);
+
+                var totalK, note;
+                if (billingType === 'MONTHLY') {
+                    var firstMonthPlan = planPerMonth;
+                    var firstMonthLocker = lockerMonths > 0 ? PRICE.LOCKER_MONTH : 0;
+                    totalK = firstMonthPlan + ptTotal + firstMonthLocker;
+                    note = 'Số tiền tháng đầu tiên (thanh toán hàng tháng)';
+                } else {
+                    totalK = planTotal + ptTotal + lockerTotal;
+                    note = 'Thanh toán một lần trọn gói';
+                }
+
+                document.getElementById('totalAmountValue').textContent = formatMoney(totalK);
+                document.getElementById('totalAmountNote').textContent = note;
+            }
+
+            ['planType', 'contractDuration', 'billingType', 'personalTrainingQty', 'lockerRentalQty'].forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('change', updateTotal);
+                    el.addEventListener('input', updateTotal);
+                }
+            });
+            updateTotal();
+        })();
+
+        document.getElementById('planType').addEventListener('change', function() {
+            var branchRow = document.getElementById('branchRow');
+            branchRow.style.display = this.value === 'BASIC' ? 'block' : 'none';
+            if (this.value === 'PREMIUM') {
+                branchRow.querySelector('select').value = '';
+            }
+        });
+        document.getElementById('planType').dispatchEvent(new Event('change'));
+    </script>
+</body>
+</html>

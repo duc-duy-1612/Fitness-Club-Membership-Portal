@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Fitness Club – Phòng gym &amp; Sức khỏe</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"/>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+    <style>
+        .landing-hero {
+            min-height: 70vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            color: #fff;
+            padding: 4rem 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .landing-hero::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: url("https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1920&q=80") center/cover no-repeat;
+            opacity: 0.25;
+            z-index: 0;
+        }
+        .landing-hero .container { position: relative; z-index: 1; }
+        .landing-hero h1 {
+            font-size: clamp(2rem, 5vw, 3.5rem);
+            font-weight: 800;
+            margin-bottom: 1rem;
+            letter-spacing: -0.02em;
+        }
+        .landing-hero .lead {
+            font-size: 1.2rem;
+            opacity: 0.95;
+            max-width: 560px;
+            margin: 0 auto 2rem;
+            line-height: 1.6;
+        }
+        .btn-cta {
+            padding: 1rem 2.5rem;
+            font-size: 1.25rem;
+            font-weight: 700;
+            border-radius: 12px;
+            background: #f97316;
+            color: #fff;
+            border: none;
+            box-shadow: 0 4px 20px rgba(249, 115, 22, 0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn-cta:hover {
+            background: #ea580c;
+            color: #fff;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 28px rgba(249, 115, 22, 0.45);
+        }
+        .landing-intro {
+            padding: 4rem 2rem;
+            background: #fff;
+        }
+        .landing-intro h2 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 1rem;
+        }
+        .landing-intro p {
+            color: #475569;
+            font-size: 1.0625rem;
+            line-height: 1.7;
+            max-width: 720px;
+        }
+    </style>
+</head>
+<body>
+    <header class="site-header">
+        <div class="container">
+            <a href="/" class="site-logo">Fitness<span>Club</span></a>
+            <nav class="site-nav">
+                <a href="/">Trang chủ</a>
+                <a href="/enroll" class="cta">Đăng ký gói</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="p-0">
+        <section class="landing-hero">
+            <div class="container">
+                <h1>Fitness Club</h1>
+                <p class="lead">Phòng gym hiện đại, đa dạng gói tập và dịch vụ chăm sóc sức khỏe. Tham gia hội viên ngay hôm nay để tận hưởng phòng tập, hồ bơi, xông hơi và huấn luyện cá nhân tại 5 chi nhánh.</p>
+                <a href="/enroll" class="btn btn-cta">Đăng ký Hội viên ngay</a>
+            </div>
+        </section>
+
+        <section class="landing-intro">
+            <div class="container">
+                <h2>Giới thiệu Fitness Club</h2>
+                <p>Fitness Club là hệ thống phòng tập cao cấp với đầy đủ trang thiết bị, hồ bơi và xông hơi. Bạn có thể chọn gói Basic (một chi nhánh) hoặc Premium (tất cả 5 chi nhánh), kèm dịch vụ thêm như huấn luyện viên cá nhân (PT) và thuê tủ locker. Đăng ký trực tuyến, xem trước hợp đồng và ký điện tử để nhận PDF chỉ trong vài bước.</p>
+                <a href="/enroll" class="btn btn-primary mt-3">Bắt đầu đăng ký</a>
+            </div>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">&copy; 2026 Fitness Club – Membership Portal.</div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

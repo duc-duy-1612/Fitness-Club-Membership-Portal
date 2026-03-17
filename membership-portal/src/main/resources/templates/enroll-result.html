@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>Đăng ký thành công – Fitness Club</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+</head>
+<body>
+    <header class="site-header">
+        <div class="container">
+            <a href="/" class="site-logo">Fitness<span>Club</span></a>
+            <nav class="site-nav">
+                <a href="/">Trang chủ</a>
+                <a href="/enroll" class="cta">Đăng ký gói</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="result-card success" th:if="${enrollmentResult}">
+            <h1>Đăng ký đã được ghi nhận</h1>
+            <p>Hồ sơ đăng ký gói của bạn đã được tạo. Kiểm tra tóm tắt bên dưới và tải hợp đồng PDF để ký điện tử.</p>
+
+            <div class="summary">
+                <p><strong>Hội viên:</strong> <span th:text="${enrollmentResult.memberName}">Name</span></p>
+                <p><strong>Gói:</strong> <span th:text="${enrollmentResult.planType}">Plan</span></p>
+                <p><strong>Chi nhánh / Quyền truy cập:</strong> <span th:text="${enrollmentResult.branchInfo}">Branch</span></p>
+                <p><strong>Ngày bắt đầu:</strong> <span th:text="${enrollmentResult.startDate}">Date</span></p>
+                <p><strong>Thời hạn:</strong> <span th:text="${enrollmentResult.contractDuration}">Duration</span></p>
+                <p><strong>Thanh toán:</strong> <span th:text="${enrollmentResult.billingType}">Billing</span></p>
+                <div class="addons" th:if="${enrollmentResult.addOnLines != null and !enrollmentResult.addOnLines.isEmpty()}">
+                    <p><strong>Dịch vụ thêm:</strong></p>
+                    <ul>
+                        <li th:each="line : ${enrollmentResult.addOnLines}" th:text="${line}">Add-on line</li>
+                    </ul>
+                </div>
+                <p><strong>Tổng tiền:</strong> <span th:text="${enrollmentResult.totalAmount}">Total</span></p>
+            </div>
+
+            <div class="actions">
+                <a th:href="${enrollmentResult.finalizeUrl}" class="btn btn-primary btn-lg" download="membership-contract.pdf">Tải hợp đồng PDF (ký điện tử)</a>
+                <a href="/enroll" class="btn btn-outline">Tạo đăng ký mới</a>
+            </div>
+        </div>
+        <div class="result-card" th:unless="${enrollmentResult}">
+            <p>Không tìm thấy thông tin đăng ký. <a href="/enroll">Quay lại form đăng ký</a>.</p>
+        </div>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">&copy; 2026 Fitness Club – Membership Portal.</div>
+    </footer>
+</body>
+</html>

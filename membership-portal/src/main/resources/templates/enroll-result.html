@@ -42,7 +42,9 @@
             </div>
 
             <div class="actions">
-                <a th:href="${enrollmentResult.finalizeUrl}" class="btn btn-primary btn-lg" download="membership-contract.pdf">Tải hợp đồng PDF (ký điện tử)</a>
+                <a th:href="@{/contract-review/{id}(id=${enrollmentId})}" class="btn btn-primary btn-lg">
+                    Xem hợp đồng để ký điện tử
+                </a>
                 <a href="/enroll" class="btn btn-outline">Tạo đăng ký mới</a>
             </div>
         </div>

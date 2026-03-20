@@ -177,11 +177,14 @@
                     a.download = 'hop-dong-hoi-vien-' + enrollmentId + '.pdf';
                     a.click();
                     URL.revokeObjectURL(a.href);
+                    btn.textContent = 'Ký thành công';
                 }).catch(function() {
                     alert('Không thể tạo PDF. Vui lòng thử lại.');
                 }).finally(function() {
                     btn.disabled = false;
-                    btn.textContent = 'Ký & Tải PDF';
+                    if (btn.textContent !== 'Ký thành công') {
+                        btn.textContent = 'Ký & Tải PDF';
+                    }
                 });
             });
         })();

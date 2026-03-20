@@ -75,7 +75,7 @@ public class EnrollmentPageController {
 
         MembershipEnrollment enrollment = enrollmentService.createEnrollment(req);
         redirectAttributes.addAttribute("id", enrollment.getId());
-        return "redirect:/contract-review/{id}";
+        return "redirect:/enroll/result/{id}";
     }
 
     @GetMapping("/result/{id}")
@@ -84,6 +84,7 @@ public class EnrollmentPageController {
         if (dtoOpt.isPresent()) {
             model.addAttribute("enrollmentResult", dtoOpt.get());
         }
+        model.addAttribute("enrollmentId", id);
         // when empty: still render result page so user sees "Không tìm thấy..." at same URL
         return "enroll-result";
     }

@@ -13,6 +13,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
 
@@ -69,10 +72,38 @@ public class EnrollmentService {
         BigDecimal planBase = pricingService.planBaseForPeriod(req.getPlanType(), req.getContractDuration());
         enrollment.setPlanBaseAmount(planBase);
 
+        int contractMonths = pricingService.durationMonths(req.getContractDuration());
+        int ptMax;
+        if (req.getContractDuration() == ContractDuration.MONTHLY) {
+            // Contract monthly => PT max = 30 days
+            ptMax = 30;
+        } else if (req.getContractDuration() == ContractDuration.SIX_MONTH) {
+            // Fixed PT max for 6 months contracts
+            ptMax = 180;
+        } else if (req.getContractDuration() == ContractDuration.ANNUAL) {
+            // Fixed PT max for 1-year contracts
+            ptMax = 365;
+        } else {
+            // Fallback to 30 if contract duration is unexpected/null
+            ptMax = 30;
+        }
+
         for (EnrollmentRequest.AddOnItem item : req.getAddOns()) {
             if (item.getType() == null || item.getQuantity() <= 0) continue;
             BigDecimal unitPrice = pricingService.unitPriceForAddOn(item.getType());
-            EnrollmentAddOn addOn = new EnrollmentAddOn(item.getType(), item.getQuantity(), unitPrice);
+
+            int qty = item.getQuantity();
+            if (item.getType() == AddOnType.PERSONAL_TRAINING) {
+                // PT sessions/days must be <= computed max days for the contract/billing type.
+                qty = Math.min(qty, ptMax);
+            }
+            if (item.getType() == AddOnType.LOCKER_RENTAL) {
+                // Locker quantity is "months rented"
+                // Allow 0..contractMonths regardless of billing type.
+                qty = Math.min(qty, contractMonths);
+            }
+
+            EnrollmentAddOn addOn = new EnrollmentAddOn(item.getType(), qty, unitPrice);
             enrollment.addAddOn(addOn);
         }
 
@@ -96,7 +127,19 @@ public class EnrollmentService {
             enrollment.setStatus("FINALIZED");
             enrollmentRepository.save(enrollment);
         }
-        return contractPdfService.generatePdfBytes(enrollment);
+
+        byte[] pdfBytes = contractPdfService.generatePdfBytes(enrollment);
+
+        // Persist a PDF path for the contract (so rubric "save to DB" can be satisfied)
+        Path baseDir = Paths.get(System.getProperty("user.home"), "fitnessclub", "contracts");
+        Files.createDirectories(baseDir);
+        Path filePath = baseDir.resolve("membership-contract-" + enrollmentId + ".pdf");
+        Files.write(filePath, pdfBytes);
+
+        enrollment.setContractPdfPath(filePath.toString());
+        enrollmentRepository.saveAndFlush(enrollment);
+
+        return pdfBytes;
     }
 
     /**
@@ -112,7 +155,19 @@ public class EnrollmentService {
             enrollment.setStatus("FINALIZED");
             enrollmentRepository.save(enrollment);
         }
-        return contractPdfService.generatePdfBytes(enrollment, signaturePng);
+
+        // Generate PDF with embedded signature, then persist file path to DB.
+        byte[] pdfBytes = contractPdfService.generatePdfBytes(enrollment, signaturePng);
+
+        Path baseDir = Paths.get(System.getProperty("user.home"), "fitnessclub", "contracts");
+        Files.createDirectories(baseDir);
+        Path filePath = baseDir.resolve("membership-contract-" + enrollmentId + ".pdf");
+        Files.write(filePath, pdfBytes);
+
+        enrollment.setContractPdfPath(filePath.toString());
+        enrollmentRepository.saveAndFlush(enrollment);
+
+        return pdfBytes;
     }
 
     private Member findOrCreateMember(EnrollmentRequest req) {
@@ -158,9 +213,24 @@ public class EnrollmentService {
                     dto.setContractDuration(e.getContractDuration() != null ? e.getContractDuration().toString() : "N/A");
                     dto.setBillingType(e.getBillingType() != null ? e.getBillingType().toString() : "N/A");
                     if (e.getAddOns() != null) {
+                        BillingType billingType = e.getBillingType();
                         for (EnrollmentAddOn a : e.getAddOns()) {
                             Integer qty = a.getQuantity();
-                            String line = (a.getAddOnType() != null ? a.getAddOnType().toString() : "") + " x " + (qty != null ? qty : 0) + " = " + (a.getLineTotal() != null ? a.getLineTotal().toString() : "0");
+                            BigDecimal unit = a.getUnitPrice() != null ? a.getUnitPrice() : BigDecimal.ZERO;
+
+                            int displayQty = qty != null ? qty : 0;
+                            if (billingType == BillingType.MONTHLY) {
+                                if (a.getAddOnType() == AddOnType.PERSONAL_TRAINING) {
+                                    // MONTHLY: chỉ tính PT cho 30 ngày đầu tiên
+                                    displayQty = Math.min(displayQty, 30);
+                                } else if (a.getAddOnType() == AddOnType.LOCKER_RENTAL) {
+                                    // MONTHLY: chỉ tính tủ cho tháng đầu (0/1)
+                                    displayQty = displayQty > 0 ? 1 : 0;
+                                }
+                            }
+                            BigDecimal lineTotal = unit.multiply(BigDecimal.valueOf(displayQty));
+
+                            String line = (a.getAddOnType() != null ? a.getAddOnType().toString() : "") + " x " + displayQty + " = " + lineTotal.toString();
                             dto.getAddOnLines().add(line);
                         }
                     }
@@ -201,8 +271,10 @@ public class EnrollmentService {
                         }
                         java.sql.Date startDate = rs.getDate("start_date");
                         dto.setStartDate(startDate != null ? startDate.toLocalDate().toString() : "N/A");
-                        dto.setContractDuration(rs.getString("contract_duration"));
-                        dto.setBillingType(rs.getString("billing_type"));
+                        String contractDuration = rs.getString("contract_duration");
+                        dto.setContractDuration(contractDuration);
+                        String billingTypeStr = rs.getString("billing_type");
+                        dto.setBillingType(billingTypeStr);
                         dto.setTotalAmount(rs.getBigDecimal("total_amount") != null ? rs.getBigDecimal("total_amount").toString() : "0");
                         dto.setFinalizeUrl("/api/enrollments/" + id + "/finalize");
                         List<String> addOnLines = jdbcTemplate.query(
@@ -210,8 +282,17 @@ public class EnrollmentService {
                                 (r, n) -> {
                                     BigDecimal unit = r.getBigDecimal("unit_price");
                                     int qty = r.getInt("quantity");
-                                    String lineTotal = (unit != null ? unit.multiply(BigDecimal.valueOf(qty)) : BigDecimal.ZERO).toString();
-                                    return r.getString("addon_type") + " x " + qty + " = " + lineTotal;
+                                    String addonType = r.getString("addon_type");
+                                    int displayQty = qty;
+                                    if ("MONTHLY".equals(billingTypeStr)) {
+                                        if ("PERSONAL_TRAINING".equals(addonType)) {
+                                            displayQty = Math.min(qty, 30);
+                                        } else if ("LOCKER_RENTAL".equals(addonType)) {
+                                            displayQty = qty > 0 ? 1 : 0;
+                                        }
+                                    }
+                                    BigDecimal lineTotal = unit != null ? unit.multiply(BigDecimal.valueOf(displayQty)) : BigDecimal.ZERO;
+                                    return addonType + " x " + displayQty + " = " + lineTotal.toString();
                                 },
                                 id);
                         dto.setAddOnLines(addOnLines);

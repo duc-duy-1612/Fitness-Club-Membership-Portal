@@ -58,7 +58,7 @@
                     </div>
 
                     <label>Ngày bắt đầu *</label>
-                    <input type="date" name="startDate" required/>
+                    <input type="date" name="startDate" id="startDate" required/>
 
                     <label>Thời hạn hợp đồng *</label>
                     <select name="contractDuration" id="contractDuration" required>
@@ -130,14 +130,16 @@
 
                 var planPerMonth = planType === 'PREMIUM' ? PRICE.PREMIUM_MONTH : PRICE.BASIC_MONTH;
                 var planTotal = planPerMonth * months;
-                var ptTotal = PRICE.PT_SESSION * ptQty;
-                var lockerTotal = PRICE.LOCKER_MONTH * (lockerMonths > 0 ? months : 0);
+                // PT monthly billing only charges up to 30 days (the first month payment).
+                var ptChargeQty = billingType === 'MONTHLY' ? Math.min(ptQty, 30) : ptQty;
+                var ptTotal = PRICE.PT_SESSION * ptChargeQty;
+                var lockerTotal = PRICE.LOCKER_MONTH * lockerMonths;
 
                 var totalK, note;
                 if (billingType === 'MONTHLY') {
-                    var firstMonthPlan = planPerMonth;
-                    var firstMonthLocker = lockerMonths > 0 ? PRICE.LOCKER_MONTH : 0;
-                    totalK = firstMonthPlan + ptTotal + firstMonthLocker;
+                    // MONTHLY: plan + add-ons chỉ tính tháng đầu tiên
+                    var lockerCharge = lockerMonths > 0 ? PRICE.LOCKER_MONTH : 0;
+                    totalK = planPerMonth + ptTotal + lockerCharge;
                     note = 'Số tiền tháng đầu tiên (thanh toán hàng tháng)';
                 } else {
                     totalK = planTotal + ptTotal + lockerTotal;
@@ -166,6 +168,81 @@
             }
         });
         document.getElementById('planType').dispatchEvent(new Event('change'));
+
+        // Đặt max cho lockerRentalQty theo contractDuration:
+        // - MONTHLY: cho phép chọn 0..contractMonths (nhưng khi thanh toán sẽ chỉ tính tiền tháng đầu tiên)
+        // - ONE_TIME_UPFRONT: cho phép chọn 0..contractMonths
+        (function() {
+            var billingEl = document.getElementById('billingType');
+            var contractEl = document.getElementById('contractDuration');
+            var lockerEl = document.getElementById('lockerRentalQty');
+            var ptEl = document.getElementById('personalTrainingQty');
+            var startEl = document.getElementById('startDate');
+            if (!billingEl || !contractEl || !lockerEl) return;
+
+            function getMonths() {
+                var v = contractEl.value;
+                var MONTHS = { MONTHLY: 1, SIX_MONTH: 6, ANNUAL: 12 };
+                return MONTHS[v] || 1;
+            }
+
+            function updateLockerMax() {
+                var months = getMonths();
+                var max = months;
+                lockerEl.max = String(max);
+
+                var current = parseInt(lockerEl.value, 10) || 0;
+                if (current < 0) current = 0;
+                if (current > max) current = max;
+                lockerEl.value = String(current);
+            }
+
+            billingEl.addEventListener('change', updateLockerMax);
+            contractEl.addEventListener('change', updateLockerMax);
+            updateLockerMax();
+
+            // PT requirement:
+            // - MONTHLY billing => PT max = 30 days
+            // - ONE_TIME_UPFRONT => PT max = number of days inclusive from startDate to endDate
+            //   (endDate = startDate + contractDuration months)
+            if (ptEl) {
+                function parseUtcDateFromInput(dateStr) {
+                    if (!dateStr) return null;
+                    var parts = dateStr.split('-');
+                    if (parts.length !== 3) return null;
+                    var y = parseInt(parts[0], 10);
+                    var m = parseInt(parts[1], 10);
+                    var d = parseInt(parts[2], 10);
+                    if (isNaN(y) || isNaN(m) || isNaN(d)) return null;
+                    return new Date(Date.UTC(y, m - 1, d));
+                }
+
+                function daysInclusive(startUtc, endUtc) {
+                    var ms = endUtc - startUtc;
+                    return Math.floor(ms / 86400000) + 1;
+                }
+
+                function updatePtMax() {
+                    var contractCode = contractEl.value;
+                    // Chuẩn max PT theo THỜI HẠN HỢP ĐỒNG (không phụ thuộc số ngày thực tế)
+                    var ptMax = 30; // MONTHLY
+                    if (contractCode === 'SIX_MONTH') ptMax = 180;
+                    if (contractCode === 'ANNUAL') ptMax = 365;
+
+                    if (!isFinite(ptMax) || ptMax < 0) ptMax = 0;
+                    ptEl.max = String(ptMax);
+
+                    var current = parseInt(ptEl.value, 10) || 0;
+                    if (current < 0) current = 0;
+                    if (current > ptMax) current = ptMax;
+                    ptEl.value = String(current);
+                }
+                billingEl.addEventListener('change', updatePtMax);
+                contractEl.addEventListener('change', updatePtMax);
+                if (startEl) startEl.addEventListener('change', updatePtMax);
+                updatePtMax();
+            }
+        })();
     </script>
 </body>
 </html>

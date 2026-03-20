@@ -18,7 +18,7 @@ Cần đảm bảo:
 Mở trình duyệt:
 
 ```
-http://localhost:8081/api/enrollments/db-check
+http://localhost:8080/api/enrollments/db-check
 ```
 
 Bạn sẽ thấy:

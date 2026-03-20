@@ -42,20 +42,34 @@ LIMIT 10;
 ```
 
 Nếu có hàng mới sau mỗi lần đăng ký → dữ liệu đã ghi đúng. Ghi lại **id** (ví dụ 9) và thử mở:  
-`http://localhost:8081/enroll/result/9`
+`http://localhost:8080/enroll/result/9`
 
 ---
 
 ## 3. Kiểm tra từ app (sau khi chạy ứng dụng)
 
 Mở trình duyệt:
-- **http://localhost:8081/api/enrollments/ids**  
+- **http://localhost:8080/api/enrollments/ids**  
   → Trả về JSON danh sách id, ví dụ `[1,2,3,9]`.  
   → Nếu có id 9 nghĩa là app **đọc được** bảng `membership_enrollments`.
 
 ---
 
-## 4. Nếu cột không khớp (DESCRIBE khác với trên)
+Luu y: endpoint này đang được bảo vệ bởi Security (HTTP Basic). Khi truy cập mà chưa login sẽ nhận `401/403`.
+
+---
+## 4. Security: kiểm tra password đã được BCrypt hash
+
+Sau khi chạy app xong, mở MySQL Workbench và chạy:
+
+```sql
+SELECT username, password, role FROM users WHERE username = 'admin';
+```
+
+Bạn cần thấy `password` có dạng BCrypt hash (thường bắt đầu bằng `$2a$` hoặc `$2b$`), không phải text thường.
+
+---
+## 5. Nếu cột không khớp (DESCRIBE khác với trên)
 
 Xóa bảng do Hibernate tạo sai rồi tạo lại bằng script:
 

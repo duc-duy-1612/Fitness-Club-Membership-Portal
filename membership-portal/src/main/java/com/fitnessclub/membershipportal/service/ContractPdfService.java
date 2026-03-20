@@ -53,7 +53,20 @@ public class ContractPdfService {
         if (!enrollment.getAddOns().isEmpty()) {
             document.add(new Paragraph("Add-ons:", normalFont));
             for (EnrollmentAddOn addOn : enrollment.getAddOns()) {
-                document.add(new Paragraph("  - " + addOn.getAddOnType().name() + " x " + addOn.getQuantity() + " @ " + addOn.getUnitPrice() + " = " + addOn.getLineTotal(), normalFont));
+                int qty = addOn.getQuantity() != null ? addOn.getQuantity() : 0;
+                int displayQty = qty;
+                if (enrollment.getBillingType() == BillingType.MONTHLY) {
+                    if (addOn.getAddOnType() == AddOnType.PERSONAL_TRAINING) {
+                        // MONTHLY: chỉ tính PT cho 30 ngày đầu tiên
+                        displayQty = Math.min(qty, 30);
+                    } else if (addOn.getAddOnType() == AddOnType.LOCKER_RENTAL) {
+                        // MONTHLY: chỉ tính tủ cho tháng đầu (has/not)
+                        displayQty = qty > 0 ? 1 : 0;
+                    }
+                }
+                BigDecimal unit = addOn.getUnitPrice() != null ? addOn.getUnitPrice() : BigDecimal.ZERO;
+                BigDecimal lineTotal = unit.multiply(BigDecimal.valueOf(displayQty));
+                document.add(new Paragraph("  - " + addOn.getAddOnType().name() + " x " + displayQty + " @ " + unit + " = " + lineTotal, normalFont));
             }
             document.add(new Paragraph(" "));
         }
@@ -106,7 +119,20 @@ public class ContractPdfService {
         if (!enrollment.getAddOns().isEmpty()) {
             document.add(new Paragraph("Add-ons:", normalFont));
             for (EnrollmentAddOn addOn : enrollment.getAddOns()) {
-                document.add(new Paragraph("  - " + addOn.getAddOnType().name() + " x " + addOn.getQuantity() + " @ " + addOn.getUnitPrice() + " = " + addOn.getLineTotal(), normalFont));
+                int qty = addOn.getQuantity() != null ? addOn.getQuantity() : 0;
+                int displayQty = qty;
+                if (enrollment.getBillingType() == BillingType.MONTHLY) {
+                    if (addOn.getAddOnType() == AddOnType.PERSONAL_TRAINING) {
+                        // MONTHLY: chỉ tính PT cho 30 ngày đầu tiên
+                        displayQty = Math.min(qty, 30);
+                    } else if (addOn.getAddOnType() == AddOnType.LOCKER_RENTAL) {
+                        // MONTHLY: chỉ tính tủ cho tháng đầu (has/not)
+                        displayQty = qty > 0 ? 1 : 0;
+                    }
+                }
+                BigDecimal unit = addOn.getUnitPrice() != null ? addOn.getUnitPrice() : BigDecimal.ZERO;
+                BigDecimal lineTotal = unit.multiply(BigDecimal.valueOf(displayQty));
+                document.add(new Paragraph("  - " + addOn.getAddOnType().name() + " x " + displayQty + " @ " + unit + " = " + lineTotal, normalFont));
             }
             document.add(new Paragraph(" "));
         }
@@ -144,5 +170,14 @@ public class ContractPdfService {
         byte[] pdf = generatePdfBytes(enrollment);
         Files.write(filePath, pdf);
         return filePath.toString();
+    }
+
+    private int contractDurationMonths(ContractDuration duration) {
+        if (duration == null) return 1;
+        return switch (duration) {
+            case MONTHLY -> 1;
+            case SIX_MONTH -> 6;
+            case ANNUAL -> 12;
+        };
     }
 }

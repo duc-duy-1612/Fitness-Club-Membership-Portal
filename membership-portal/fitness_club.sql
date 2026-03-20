@@ -14,8 +14,22 @@ CREATE TABLE members (
 -- 3. Bảng Chi nhánh (Branch - Hệ thống có 5 chi nhánh)
 CREATE TABLE branches (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL
+    name VARCHAR(100) NOT NULL,
+    city VARCHAR(50) NULL
 );
+
+-- 3.1 Bảng người dùng (users) cho Spring Security
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    role VARCHAR(20) NOT NULL
+);
+
+-- Seed user admin (password sẽ được mã hóa BCrypt khi chạy app do initializer)
+INSERT INTO users (username, password, role)
+VALUES ('admin', 'admin123', 'ADMIN')
+ON DUPLICATE KEY UPDATE password = VALUES(password), role = VALUES(role);
 
 -- 4. Bảng Gói tập (Plan - Basic / Premium)
 CREATE TABLE plans (
@@ -155,6 +169,55 @@ CREATE TABLE IF NOT EXISTS enrollment_addons (
     unit_price DECIMAL(10, 2) NOT NULL DEFAULT 0,
     FOREIGN KEY (enrollment_id) REFERENCES membership_enrollments(id) ON DELETE CASCADE
 );
+
+-- ==========================
+-- Seed dữ liệu app: membership_enrollments + enrollment_addons
+-- (phục vụ các endpoint GET /api/enrollments/{id} và /api/enrollments/ids)
+-- ==========================
+INSERT INTO membership_enrollments (
+    id, member_id, plan_type, primary_branch_id, start_date,
+    contract_duration, billing_type, plan_base_amount, total_amount,
+    status, contract_pdf_path, created_at
+) VALUES
+    (1, 1, 'BASIC', 1, '2026-03-01', 'SIX_MONTH', 'ONE_TIME_UPFRONT', 3000000.00, 3700000.00, 'DRAFT', NULL, NOW()),
+    (2, 2, 'PREMIUM', NULL, '2026-03-02', 'MONTHLY', 'MONTHLY', 900000.00, 1200000.00, 'DRAFT', NULL, NOW()),
+    (3, 3, 'BASIC', 2, '2026-03-03', 'MONTHLY', 'ONE_TIME_UPFRONT', 500000.00, 900000.00, 'DRAFT', NULL, NOW()),
+    (4, 4, 'PREMIUM', NULL, '2026-03-04', 'SIX_MONTH', 'ONE_TIME_UPFRONT', 5400000.00, 5500000.00, 'DRAFT', NULL, NOW()),
+    (5, 5, 'BASIC', 3, '2026-03-05', 'ANNUAL', 'MONTHLY', 6000000.00, 3500000.00, 'DRAFT', NULL, NOW()),
+    (6, 6, 'PREMIUM', NULL, '2026-03-06', 'ANNUAL', 'ONE_TIME_UPFRONT', 10800000.00, 10900000.00, 'DRAFT', NULL, NOW())
+ON DUPLICATE KEY UPDATE
+    member_id = VALUES(member_id),
+    plan_type = VALUES(plan_type),
+    primary_branch_id = VALUES(primary_branch_id),
+    start_date = VALUES(start_date),
+    contract_duration = VALUES(contract_duration),
+    billing_type = VALUES(billing_type),
+    plan_base_amount = VALUES(plan_base_amount),
+    total_amount = VALUES(total_amount),
+    status = VALUES(status),
+    contract_pdf_path = VALUES(contract_pdf_path),
+    created_at = VALUES(created_at);
+
+INSERT INTO enrollment_addons (id, enrollment_id, addon_type, quantity, unit_price) VALUES
+    -- Enrollment 1: Locker 6 tháng + PT 2 buổi
+    (1, 1, 'LOCKER_RENTAL', 1, 100000.00),
+    (2, 1, 'PERSONAL_TRAINING', 2, 300000.00),
+    -- Enrollment 2: PT 3 buổi
+    (3, 2, 'PERSONAL_TRAINING', 1, 300000.00),
+    -- Enrollment 3: PT 5 buổi + Locker 1 tháng
+    (4, 3, 'PERSONAL_TRAINING', 1, 300000.00),
+    (5, 3, 'LOCKER_RENTAL', 1, 100000.00),
+    -- Enrollment 4: Locker 6 tháng
+    (6, 4, 'LOCKER_RENTAL', 1, 100000.00),
+    -- Enrollment 5: PT 10 buổi
+    (7, 5, 'PERSONAL_TRAINING', 10, 300000.00),
+    -- Enrollment 6: Locker 12 tháng
+    (8, 6, 'LOCKER_RENTAL', 1, 100000.00)
+ON DUPLICATE KEY UPDATE
+    enrollment_id = VALUES(enrollment_id),
+    addon_type = VALUES(addon_type),
+    quantity = VALUES(quantity),
+    unit_price = VALUES(unit_price);
 
 DESCRIBE membership_enrollments;
 

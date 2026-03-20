@@ -12,10 +12,12 @@ import java.util.List;
 @Service
 public class PricingService {
 
-    private static final BigDecimal BASIC_MONTHLY = new BigDecimal("29.99");
-    private static final BigDecimal PREMIUM_MONTHLY = new BigDecimal("59.99");
-    private static final BigDecimal PERSONAL_TRAINING_PER_SESSION = new BigDecimal("25.00");
-    private static final BigDecimal LOCKER_RENTAL_PER_MONTH = new BigDecimal("15.00");
+    // UI requirement: 500k/month (Basic), 900k/month (Premium)
+    private static final BigDecimal BASIC_MONTHLY = new BigDecimal("500000");
+    private static final BigDecimal PREMIUM_MONTHLY = new BigDecimal("900000");
+    // Add-ons: PT = 300k/buổi, Locker = 100k/tháng
+    private static final BigDecimal PERSONAL_TRAINING_PER_SESSION = new BigDecimal("300000");
+    private static final BigDecimal LOCKER_RENTAL_PER_MONTH = new BigDecimal("100000");
 
     public BigDecimal monthlyRateForPlan(PlanType planType) {
         return planType == PlanType.PREMIUM ? PREMIUM_MONTHLY : BASIC_MONTHLY;
@@ -49,17 +51,31 @@ public class PricingService {
     }
 
     /**
-     * Total for add-ons over the contract period.
-     * Personal training: one-time per session. Locker: monthly for contract length.
+     * Total for add-ons.
+     * PT: PT_PER_SESSION * quantity (days/sessions).
+     * Locker: LOCKER_RENTAL_PER_MONTH * (MONTHLY billing ? (quantity > 0 ? 1 : 0) : quantity)
      */
-    public BigDecimal addOnsTotal(List<EnrollmentAddOn> addOns, ContractDuration duration) {
-        int months = durationMonths(duration);
+    public BigDecimal addOnsTotal(List<EnrollmentAddOn> addOns, BillingType billingType) {
         BigDecimal total = BigDecimal.ZERO;
         for (EnrollmentAddOn line : addOns) {
-            if (line.getAddOnType() == AddOnType.PERSONAL_TRAINING) {
-                total = total.add(line.getUnitPrice().multiply(BigDecimal.valueOf(line.getQuantity())));
+            BigDecimal unit = line.getUnitPrice() != null ? line.getUnitPrice() : BigDecimal.ZERO;
+            int qty = line.getQuantity() != null ? line.getQuantity() : 0;
+
+            if (billingType == BillingType.MONTHLY) {
+                if (line.getAddOnType() == AddOnType.PERSONAL_TRAINING) {
+                    // MONTHLY billing charges PT only for the first 30 days
+                    int chargeQty = Math.min(qty, 30);
+                    total = total.add(unit.multiply(BigDecimal.valueOf(chargeQty)));
+                } else if (line.getAddOnType() == AddOnType.LOCKER_RENTAL) {
+                    // MONTHLY billing charges locker only for the first month (has/not)
+                    int chargeQty = qty > 0 ? 1 : 0;
+                    total = total.add(unit.multiply(BigDecimal.valueOf(chargeQty)));
+                } else {
+                    // Fallback: charge raw quantity if an unknown add-on type appears
+                    total = total.add(unit.multiply(BigDecimal.valueOf(qty)));
+                }
             } else {
-                total = total.add(line.getUnitPrice().multiply(BigDecimal.valueOf(line.getQuantity() * months)));
+                total = total.add(unit.multiply(BigDecimal.valueOf(qty)));
             }
         }
         return total.setScale(2, RoundingMode.HALF_UP);
@@ -70,8 +86,15 @@ public class PricingService {
      * UI can show "pay monthly" or "pay upfront" from billingType.
      */
     public BigDecimal computeTotal(MembershipEnrollment enrollment) {
-        BigDecimal planBase = planBaseForPeriod(enrollment.getPlanType(), enrollment.getContractDuration());
-        BigDecimal addOnTotal = addOnsTotal(enrollment.getAddOns(), enrollment.getContractDuration());
+        int planMonths = enrollment.getBillingType() == BillingType.MONTHLY
+                ? 1
+                : durationMonths(enrollment.getContractDuration());
+
+        BigDecimal planBase = monthlyRateForPlan(enrollment.getPlanType())
+                .multiply(BigDecimal.valueOf(planMonths))
+                .setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal addOnTotal = addOnsTotal(enrollment.getAddOns(), enrollment.getBillingType());
         return planBase.add(addOnTotal).setScale(2, RoundingMode.HALF_UP);
     }
 }

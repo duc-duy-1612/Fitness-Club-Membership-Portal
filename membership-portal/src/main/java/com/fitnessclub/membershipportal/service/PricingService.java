@@ -51,50 +51,36 @@ public class PricingService {
     }
 
     /**
-     * Total for add-ons.
-     * PT: PT_PER_SESSION * quantity (days/sessions).
-     * Locker: LOCKER_RENTAL_PER_MONTH * quantity
+     * Total for add-ons over full contract selection.
+     * PT: PT_PER_SESSION * quantity.
+     * Locker: LOCKER_RENTAL_PER_MONTH * quantity.
      */
     public BigDecimal addOnsTotal(List<EnrollmentAddOn> addOns, BillingType billingType) {
         BigDecimal total = BigDecimal.ZERO;
         for (EnrollmentAddOn line : addOns) {
             BigDecimal unit = line.getUnitPrice() != null ? line.getUnitPrice() : BigDecimal.ZERO;
             int qty = line.getQuantity() != null ? line.getQuantity() : 0;
-
-            if (billingType == BillingType.MONTHLY) {
-                if (line.getAddOnType() == AddOnType.PERSONAL_TRAINING) {
-                    // MONTHLY billing charges PT only for the first 30 days
-                    int chargeQty = Math.min(qty, 30);
-                    total = total.add(unit.multiply(BigDecimal.valueOf(chargeQty)));
-                } else if (line.getAddOnType() == AddOnType.LOCKER_RENTAL) {
-                    // Locker is charged by selected rental months.
-                    int chargeQty = qty;
-                    total = total.add(unit.multiply(BigDecimal.valueOf(chargeQty)));
-                } else {
-                    // Fallback: charge raw quantity if an unknown add-on type appears
-                    total = total.add(unit.multiply(BigDecimal.valueOf(qty)));
-                }
-            } else {
-                total = total.add(unit.multiply(BigDecimal.valueOf(qty)));
-            }
+            total = total.add(unit.multiply(BigDecimal.valueOf(qty)));
         }
         return total.setScale(2, RoundingMode.HALF_UP);
     }
 
     /**
-     * Total amount: plan base + add-ons. For monthly billing we still store total;
-     * UI can show "pay monthly" or "pay upfront" from billingType.
+     * Total amount:
+     * - ONE_TIME_UPFRONT: full course total
+     * - MONTHLY: monthly installment = full course total / contract months
      */
     public BigDecimal computeTotal(MembershipEnrollment enrollment) {
-        int planMonths = enrollment.getBillingType() == BillingType.MONTHLY
-                ? 1
-                : durationMonths(enrollment.getContractDuration());
-
+        int months = durationMonths(enrollment.getContractDuration());
         BigDecimal planBase = monthlyRateForPlan(enrollment.getPlanType())
-                .multiply(BigDecimal.valueOf(planMonths))
+                .multiply(BigDecimal.valueOf(months))
                 .setScale(2, RoundingMode.HALF_UP);
 
         BigDecimal addOnTotal = addOnsTotal(enrollment.getAddOns(), enrollment.getBillingType());
-        return planBase.add(addOnTotal).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal fullTotal = planBase.add(addOnTotal).setScale(2, RoundingMode.HALF_UP);
+        if (enrollment.getBillingType() == BillingType.MONTHLY) {
+            return fullTotal.divide(BigDecimal.valueOf(months), 2, RoundingMode.HALF_UP);
+        }
+        return fullTotal;
     }
 }

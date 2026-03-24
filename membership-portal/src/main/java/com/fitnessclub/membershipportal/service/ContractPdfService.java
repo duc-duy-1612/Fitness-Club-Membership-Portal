@@ -55,12 +55,6 @@ public class ContractPdfService {
             for (EnrollmentAddOn addOn : enrollment.getAddOns()) {
                 int qty = addOn.getQuantity() != null ? addOn.getQuantity() : 0;
                 int displayQty = qty;
-                if (enrollment.getBillingType() == BillingType.MONTHLY) {
-                    if (addOn.getAddOnType() == AddOnType.PERSONAL_TRAINING) {
-                        // MONTHLY: chỉ tính PT cho 30 ngày đầu tiên
-                        displayQty = Math.min(qty, 30);
-                    }
-                }
                 BigDecimal unit = addOn.getUnitPrice() != null ? addOn.getUnitPrice() : BigDecimal.ZERO;
                 BigDecimal lineTotal = unit.multiply(BigDecimal.valueOf(displayQty));
                 document.add(new Paragraph("  - " + addOn.getAddOnType().name() + " x " + displayQty + " @ " + unit + " = " + lineTotal, normalFont));
@@ -118,12 +112,6 @@ public class ContractPdfService {
             for (EnrollmentAddOn addOn : enrollment.getAddOns()) {
                 int qty = addOn.getQuantity() != null ? addOn.getQuantity() : 0;
                 int displayQty = qty;
-                if (enrollment.getBillingType() == BillingType.MONTHLY) {
-                    if (addOn.getAddOnType() == AddOnType.PERSONAL_TRAINING) {
-                        // MONTHLY: chỉ tính PT cho 30 ngày đầu tiên
-                        displayQty = Math.min(qty, 30);
-                    }
-                }
                 BigDecimal unit = addOn.getUnitPrice() != null ? addOn.getUnitPrice() : BigDecimal.ZERO;
                 BigDecimal lineTotal = unit.multiply(BigDecimal.valueOf(displayQty));
                 document.add(new Paragraph("  - " + addOn.getAddOnType().name() + " x " + displayQty + " @ " + unit + " = " + lineTotal, normalFont));

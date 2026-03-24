@@ -130,17 +130,15 @@
 
                 var planPerMonth = planType === 'PREMIUM' ? PRICE.PREMIUM_MONTH : PRICE.BASIC_MONTH;
                 var planTotal = planPerMonth * months;
-                // PT monthly billing only charges up to 30 days (the first month payment).
-                var ptChargeQty = billingType === 'MONTHLY' ? Math.min(ptQty, 30) : ptQty;
+                var ptChargeQty = ptQty;
                 var ptTotal = PRICE.PT_SESSION * ptChargeQty;
                 var lockerTotal = PRICE.LOCKER_MONTH * lockerMonths;
 
                 var totalK, note;
                 if (billingType === 'MONTHLY') {
-                    // MONTHLY: plan + add-ons chỉ tính tháng đầu tiên
-                    var lockerCharge = PRICE.LOCKER_MONTH * lockerMonths;
-                    totalK = planPerMonth + ptTotal + lockerCharge;
-                    note = 'Số tiền tháng đầu tiên (thanh toán hàng tháng)';
+                    var fullCourseTotal = planTotal + ptTotal + lockerTotal;
+                    totalK = fullCourseTotal / months;
+                    note = 'Số tiền phải trả mỗi tháng';
                 } else {
                     totalK = planTotal + ptTotal + lockerTotal;
                     note = 'Thanh toán một lần trọn gói';

@@ -206,18 +206,11 @@ public class EnrollmentService {
                     dto.setContractDuration(contractDurationLabel(e.getContractDuration()));
                     dto.setBillingType(billingTypeLabel(e.getBillingType()));
                     if (e.getAddOns() != null) {
-                        BillingType billingType = e.getBillingType();
                         for (EnrollmentAddOn a : e.getAddOns()) {
                             Integer qty = a.getQuantity();
                             BigDecimal unit = a.getUnitPrice() != null ? a.getUnitPrice() : BigDecimal.ZERO;
 
                             int displayQty = qty != null ? qty : 0;
-                            if (billingType == BillingType.MONTHLY) {
-                                if (a.getAddOnType() == AddOnType.PERSONAL_TRAINING) {
-                                    // MONTHLY: chỉ tính PT cho 30 ngày đầu tiên
-                                    displayQty = Math.min(displayQty, 30);
-                                }
-                            }
                             BigDecimal lineTotal = unit.multiply(BigDecimal.valueOf(displayQty));
 
                             String line = addOnTypeLabel(a.getAddOnType()) + " x " + displayQty + " = " + formatMoney(lineTotal);
@@ -274,11 +267,6 @@ public class EnrollmentService {
                                     int qty = r.getInt("quantity");
                                     String addonType = r.getString("addon_type");
                                     int displayQty = qty;
-                                    if ("MONTHLY".equals(billingTypeStr)) {
-                                        if ("PERSONAL_TRAINING".equals(addonType)) {
-                                            displayQty = Math.min(qty, 30);
-                                        }
-                                    }
                                     BigDecimal lineTotal = unit != null ? unit.multiply(BigDecimal.valueOf(displayQty)) : BigDecimal.ZERO;
                                     return addOnTypeLabel(addonType) + " x " + displayQty + " = " + formatMoney(lineTotal);
                                 },

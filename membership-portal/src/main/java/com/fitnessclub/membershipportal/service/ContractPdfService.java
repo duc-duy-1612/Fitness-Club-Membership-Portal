@@ -59,9 +59,6 @@ public class ContractPdfService {
                     if (addOn.getAddOnType() == AddOnType.PERSONAL_TRAINING) {
                         // MONTHLY: chỉ tính PT cho 30 ngày đầu tiên
                         displayQty = Math.min(qty, 30);
-                    } else if (addOn.getAddOnType() == AddOnType.LOCKER_RENTAL) {
-                        // MONTHLY: chỉ tính tủ cho tháng đầu (has/not)
-                        displayQty = qty > 0 ? 1 : 0;
                     }
                 }
                 BigDecimal unit = addOn.getUnitPrice() != null ? addOn.getUnitPrice() : BigDecimal.ZERO;
@@ -125,9 +122,6 @@ public class ContractPdfService {
                     if (addOn.getAddOnType() == AddOnType.PERSONAL_TRAINING) {
                         // MONTHLY: chỉ tính PT cho 30 ngày đầu tiên
                         displayQty = Math.min(qty, 30);
-                    } else if (addOn.getAddOnType() == AddOnType.LOCKER_RENTAL) {
-                        // MONTHLY: chỉ tính tủ cho tháng đầu (has/not)
-                        displayQty = qty > 0 ? 1 : 0;
                     }
                 }
                 BigDecimal unit = addOn.getUnitPrice() != null ? addOn.getUnitPrice() : BigDecimal.ZERO;

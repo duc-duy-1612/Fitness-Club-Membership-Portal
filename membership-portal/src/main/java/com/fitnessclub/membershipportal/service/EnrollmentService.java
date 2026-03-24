@@ -16,6 +16,7 @@ import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.text.DecimalFormat;
 import java.util.List;
 import java.util.Optional;
 
@@ -23,6 +24,7 @@ import java.util.Optional;
 public class EnrollmentService {
 
     private static final Logger log = LoggerFactory.getLogger(EnrollmentService.class);
+    private static final DecimalFormat MONEY_FMT = new DecimalFormat("#,##0.##");
 
     private final MemberRepository memberRepository;
     private final BranchRepository branchRepository;
@@ -73,20 +75,11 @@ public class EnrollmentService {
         enrollment.setPlanBaseAmount(planBase);
 
         int contractMonths = pricingService.durationMonths(req.getContractDuration());
-        int ptMax;
-        if (req.getContractDuration() == ContractDuration.MONTHLY) {
-            // Contract monthly => PT max = 30 days
-            ptMax = 30;
-        } else if (req.getContractDuration() == ContractDuration.SIX_MONTH) {
-            // Fixed PT max for 6 months contracts
-            ptMax = 180;
-        } else if (req.getContractDuration() == ContractDuration.ANNUAL) {
-            // Fixed PT max for 1-year contracts
-            ptMax = 365;
-        } else {
-            // Fallback to 30 if contract duration is unexpected/null
-            ptMax = 30;
-        }
+        int ptMax = switch (req.getContractDuration()) {
+            case MONTHLY -> 30;
+            case SIX_MONTH -> 180;
+            case ANNUAL -> 365;
+        };
 
         for (EnrollmentRequest.AddOnItem item : req.getAddOns()) {
             if (item.getType() == null || item.getQuantity() <= 0) continue;
@@ -202,16 +195,16 @@ public class EnrollmentService {
 
                     EnrollmentResultDto dto = new EnrollmentResultDto();
                     dto.setMemberName(e.getMember() != null ? (e.getMember().getFirstName() + " " + e.getMember().getLastName()) : "N/A");
-                    dto.setPlanType(e.getPlanType() != null ? e.getPlanType().toString() : "N/A");
+                    dto.setPlanType(planTypeLabel(e.getPlanType()));
                     if (e.getPrimaryBranch() != null) {
                         String city = e.getPrimaryBranch().getCity();
                         dto.setBranchInfo(e.getPrimaryBranch().getName() + (city != null && !city.isEmpty() ? ", " + city : ""));
                     } else {
-                        dto.setBranchInfo("Tất cả 5 chi nhánh (Premium)");
+                        dto.setBranchInfo("Tất cả 5 chi nhánh");
                     }
                     dto.setStartDate(e.getStartDate() != null ? e.getStartDate().toString() : "N/A");
-                    dto.setContractDuration(e.getContractDuration() != null ? e.getContractDuration().toString() : "N/A");
-                    dto.setBillingType(e.getBillingType() != null ? e.getBillingType().toString() : "N/A");
+                    dto.setContractDuration(contractDurationLabel(e.getContractDuration()));
+                    dto.setBillingType(billingTypeLabel(e.getBillingType()));
                     if (e.getAddOns() != null) {
                         BillingType billingType = e.getBillingType();
                         for (EnrollmentAddOn a : e.getAddOns()) {
@@ -223,18 +216,15 @@ public class EnrollmentService {
                                 if (a.getAddOnType() == AddOnType.PERSONAL_TRAINING) {
                                     // MONTHLY: chỉ tính PT cho 30 ngày đầu tiên
                                     displayQty = Math.min(displayQty, 30);
-                                } else if (a.getAddOnType() == AddOnType.LOCKER_RENTAL) {
-                                    // MONTHLY: chỉ tính tủ cho tháng đầu (0/1)
-                                    displayQty = displayQty > 0 ? 1 : 0;
                                 }
                             }
                             BigDecimal lineTotal = unit.multiply(BigDecimal.valueOf(displayQty));
 
-                            String line = (a.getAddOnType() != null ? a.getAddOnType().toString() : "") + " x " + displayQty + " = " + lineTotal.toString();
+                            String line = addOnTypeLabel(a.getAddOnType()) + " x " + displayQty + " = " + formatMoney(lineTotal);
                             dto.getAddOnLines().add(line);
                         }
                     }
-                    dto.setTotalAmount(e.getTotalAmount() != null ? e.getTotalAmount().toString() : "0");
+                    dto.setTotalAmount(formatMoney(e.getTotalAmount()));
                     dto.setFinalizeUrl("/api/enrollments/" + id + "/finalize");
                     return dto;
                 });
@@ -262,20 +252,20 @@ public class EnrollmentService {
                         String fn = rs.getString("first_name");
                         String ln = rs.getString("last_name");
                         dto.setMemberName((fn != null ? fn : "") + " " + (ln != null ? ln : ""));
-                        dto.setPlanType(rs.getString("plan_type"));
+                        dto.setPlanType(planTypeLabel(rs.getString("plan_type")));
                         if (rs.getObject("primary_branch_id") != null && rs.getString("branch_name") != null) {
                             String city = rs.getString("branch_city");
                             dto.setBranchInfo(rs.getString("branch_name") + (city != null && !city.isEmpty() ? ", " + city : ""));
                         } else {
-                            dto.setBranchInfo("Tất cả 5 chi nhánh (Premium)");
+                            dto.setBranchInfo("Tất cả 5 chi nhánh");
                         }
                         java.sql.Date startDate = rs.getDate("start_date");
                         dto.setStartDate(startDate != null ? startDate.toLocalDate().toString() : "N/A");
                         String contractDuration = rs.getString("contract_duration");
-                        dto.setContractDuration(contractDuration);
+                        dto.setContractDuration(contractDurationLabel(contractDuration));
                         String billingTypeStr = rs.getString("billing_type");
-                        dto.setBillingType(billingTypeStr);
-                        dto.setTotalAmount(rs.getBigDecimal("total_amount") != null ? rs.getBigDecimal("total_amount").toString() : "0");
+                        dto.setBillingType(billingTypeLabel(billingTypeStr));
+                        dto.setTotalAmount(formatMoney(rs.getBigDecimal("total_amount")));
                         dto.setFinalizeUrl("/api/enrollments/" + id + "/finalize");
                         List<String> addOnLines = jdbcTemplate.query(
                                 "SELECT addon_type, quantity, unit_price FROM enrollment_addons WHERE enrollment_id = ?",
@@ -287,12 +277,10 @@ public class EnrollmentService {
                                     if ("MONTHLY".equals(billingTypeStr)) {
                                         if ("PERSONAL_TRAINING".equals(addonType)) {
                                             displayQty = Math.min(qty, 30);
-                                        } else if ("LOCKER_RENTAL".equals(addonType)) {
-                                            displayQty = qty > 0 ? 1 : 0;
                                         }
                                     }
                                     BigDecimal lineTotal = unit != null ? unit.multiply(BigDecimal.valueOf(displayQty)) : BigDecimal.ZERO;
-                                    return addonType + " x " + displayQty + " = " + lineTotal.toString();
+                                    return addOnTypeLabel(addonType) + " x " + displayQty + " = " + formatMoney(lineTotal);
                                 },
                                 id);
                         dto.setAddOnLines(addOnLines);
@@ -314,5 +302,80 @@ public class EnrollmentService {
         return enrollmentRepository.findAll().stream()
                 .map(MembershipEnrollment::getId)
                 .toList();
+    }
+
+    private static String formatMoney(BigDecimal amount) {
+        BigDecimal safe = amount != null ? amount : BigDecimal.ZERO;
+        return MONEY_FMT.format(safe) + " đ";
+    }
+
+    private static String planTypeLabel(PlanType value) {
+        if (value == null) return "N/A";
+        return switch (value) {
+            case BASIC -> "Basic";
+            case PREMIUM -> "Premium";
+        };
+    }
+
+    private static String planTypeLabel(String value) {
+        if (value == null) return "N/A";
+        return switch (value) {
+            case "BASIC" -> "Basic";
+            case "PREMIUM" -> "Premium";
+            default -> value;
+        };
+    }
+
+    private static String contractDurationLabel(ContractDuration value) {
+        if (value == null) return "N/A";
+        return switch (value) {
+            case MONTHLY -> "Hàng tháng";
+            case SIX_MONTH -> "6 tháng";
+            case ANNUAL -> "1 năm";
+        };
+    }
+
+    private static String contractDurationLabel(String value) {
+        if (value == null) return "N/A";
+        return switch (value) {
+            case "MONTHLY" -> "Hàng tháng";
+            case "SIX_MONTH" -> "6 tháng";
+            case "ANNUAL" -> "1 năm";
+            default -> value;
+        };
+    }
+
+    private static String billingTypeLabel(BillingType value) {
+        if (value == null) return "N/A";
+        return switch (value) {
+            case MONTHLY -> "Thanh toán hàng tháng";
+            case ONE_TIME_UPFRONT -> "Thanh toán một lần";
+        };
+    }
+
+    private static String billingTypeLabel(String value) {
+        if (value == null) return "N/A";
+        return switch (value) {
+            case "MONTHLY" -> "Thanh toán hàng tháng";
+            case "ONE_TIME_UPFRONT" -> "Thanh toán một lần";
+            default -> value;
+        };
+    }
+
+    private static String addOnTypeLabel(AddOnType value) {
+        if (value == null) return "Dịch vụ thêm";
+        return switch (value) {
+            case PERSONAL_TRAINING -> "Huấn luyện cá nhân (PT)";
+            case LOCKER_RENTAL -> "Thuê tủ locker";
+        };
+    }
+
+    private static String addOnTypeLabel(String value) {
+        if (value == null) return "Dịch vụ thêm";
+        return switch (value) {
+            case "PERSONAL_TRAINING" -> "Huấn luyện cá nhân (PT)";
+            case "LOCKER_RENTAL" -> "Thuê tủ locker";
+            default -> value;
+        };
     }
 }

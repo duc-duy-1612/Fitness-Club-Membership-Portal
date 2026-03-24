@@ -138,7 +138,7 @@
                 var totalK, note;
                 if (billingType === 'MONTHLY') {
                     // MONTHLY: plan + add-ons chỉ tính tháng đầu tiên
-                    var lockerCharge = lockerMonths > 0 ? PRICE.LOCKER_MONTH : 0;
+                    var lockerCharge = PRICE.LOCKER_MONTH * lockerMonths;
                     totalK = planPerMonth + ptTotal + lockerCharge;
                     note = 'Số tiền tháng đầu tiên (thanh toán hàng tháng)';
                 } else {

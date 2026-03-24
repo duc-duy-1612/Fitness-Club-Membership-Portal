@@ -53,7 +53,7 @@ public class PricingService {
     /**
      * Total for add-ons.
      * PT: PT_PER_SESSION * quantity (days/sessions).
-     * Locker: LOCKER_RENTAL_PER_MONTH * (MONTHLY billing ? (quantity > 0 ? 1 : 0) : quantity)
+     * Locker: LOCKER_RENTAL_PER_MONTH * quantity
      */
     public BigDecimal addOnsTotal(List<EnrollmentAddOn> addOns, BillingType billingType) {
         BigDecimal total = BigDecimal.ZERO;
@@ -67,8 +67,8 @@ public class PricingService {
                     int chargeQty = Math.min(qty, 30);
                     total = total.add(unit.multiply(BigDecimal.valueOf(chargeQty)));
                 } else if (line.getAddOnType() == AddOnType.LOCKER_RENTAL) {
-                    // MONTHLY billing charges locker only for the first month (has/not)
-                    int chargeQty = qty > 0 ? 1 : 0;
+                    // Locker is charged by selected rental months.
+                    int chargeQty = qty;
                     total = total.add(unit.multiply(BigDecimal.valueOf(chargeQty)));
                 } else {
                     // Fallback: charge raw quantity if an unknown add-on type appears

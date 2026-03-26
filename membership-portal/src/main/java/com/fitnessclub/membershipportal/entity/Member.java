@@ -28,6 +28,9 @@ public class Member {
     @Column(name = "health_goals", columnDefinition = "TEXT")
     private String healthGoals;
 
+    @Column(name = "email", length = 120)
+    private String email;
+
     // Constructor rỗng (Bắt buộc phải có đối với JPA)
     public Member() {
     }
@@ -79,5 +82,13 @@ public class Member {
 
     public void setHealthGoals(String healthGoals) {
         this.healthGoals = healthGoals;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 }

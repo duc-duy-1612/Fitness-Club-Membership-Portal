@@ -6,8 +6,11 @@ import com.fitnessclub.membershipportal.entity.MembershipEnrollment;
 import com.fitnessclub.membershipportal.service.EnrollmentService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.*;
 
@@ -86,7 +89,10 @@ public class EnrollmentController {
      * Finalize enrollment and download PDF contract.
      */
     @RequestMapping(value = "/{id}/finalize", method = { RequestMethod.GET, RequestMethod.POST }, produces = MediaType.APPLICATION_PDF_VALUE)
-    public ResponseEntity<byte[]> finalizeAndDownloadPdf(@PathVariable Integer id) {
+    public ResponseEntity<byte[]> finalizeAndDownloadPdf(@PathVariable Integer id, Authentication authentication) {
+        if (!canAccessEnrollment(id, authentication)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         try {
             byte[] pdf = enrollmentService.finalizeAndGetPdf(id);
             HttpHeaders headers = new HttpHeaders();
@@ -105,7 +111,12 @@ public class EnrollmentController {
      * Ký & Tải PDF: nhận chữ ký base64, tạo PDF có nhúng chữ ký, cập nhật trạng thái FINALIZED, trả về file PDF.
      */
     @PostMapping(value = "/{id}/sign-pdf", produces = MediaType.APPLICATION_PDF_VALUE)
-    public ResponseEntity<byte[]> signAndDownloadPdf(@PathVariable Integer id, @RequestBody SignContractRequest request) {
+    public ResponseEntity<byte[]> signAndDownloadPdf(@PathVariable Integer id,
+                                                       @RequestBody SignContractRequest request,
+                                                       Authentication authentication) {
+        if (!canAccessEnrollment(id, authentication)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         try {
             byte[] signaturePng = null;
             if (request != null && request.getSignatureDataUrl() != null && !request.getSignatureDataUrl().isEmpty()) {
@@ -122,10 +133,48 @@ public class EnrollmentController {
             headers.setContentDispositionFormData("attachment", "hop-dong-hoi-vien-" + id + ".pdf");
             headers.setContentLength(pdf.length);
             return ResponseEntity.ok().headers(headers).body(pdf);
+        } catch (IllegalStateException e) {
+            // Example: already FINALIZED -> no re-sign allowed
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
         }
+    }
+
+    @GetMapping(value = "/{id}/download", produces = MediaType.APPLICATION_PDF_VALUE)
+    public ResponseEntity<byte[]> downloadStoredPdf(@PathVariable Integer id, Authentication authentication) {
+        if (!canAccessEnrollment(id, authentication)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        try {
+            byte[] pdf = enrollmentService.downloadStoredContractPdfBytes(id);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_PDF);
+            headers.setContentDispositionFormData("attachment", "membership-contract-" + id + ".pdf");
+            headers.setContentLength(pdf.length);
+            return ResponseEntity.ok().headers(headers).body(pdf);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    private boolean canAccessEnrollment(Integer id, Authentication authentication) {
+        if (authentication == null) return false;
+        for (GrantedAuthority a : authentication.getAuthorities()) {
+            if ("ROLE_ADMIN".equals(a.getAuthority())) return true;
+        }
+        String username = authentication.getName();
+        if (username == null || username.isBlank()) return false;
+
+        Optional<com.fitnessclub.membershipportal.entity.MembershipEnrollment> opt = enrollmentService.getEnrollmentWithAddOns(id);
+        if (opt.isEmpty()) return false;
+        var e = opt.get();
+        var member = e.getMember();
+        if (member == null || member.getEmail() == null) return false;
+        return member.getEmail().equalsIgnoreCase(username);
     }
 }

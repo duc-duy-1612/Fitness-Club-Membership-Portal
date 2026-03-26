@@ -39,8 +39,9 @@ CREATE TABLE users (
 
 -- Note:
 -- Password below starts as plain text; UserAccountInitializer converts to BCrypt on app startup.
+-- Default admin account used for demo
 INSERT INTO users (username, password, role)
-VALUES ('admin', 'admin123', 'ADMIN')
+VALUES ('admin@gmail.com', 'admin123', 'ADMIN')
 ON DUPLICATE KEY UPDATE password = VALUES(password), role = VALUES(role);
 
 -- 4) Enrollment header

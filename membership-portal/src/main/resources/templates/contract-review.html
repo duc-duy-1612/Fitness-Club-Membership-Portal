@@ -42,7 +42,12 @@
             </div>
 
             <div class="actions">
-                <a th:href="@{/contract/{id}(id=${enrollmentId})}" class="btn btn-primary btn-lg">Ký &amp; Tải PDF</a>
+                <a th:if="${enrollmentResult.status != 'FINALIZED'}"
+                   th:href="@{/contract/{id}(id=${enrollmentId})}"
+                   class="btn btn-primary btn-lg">Ký &amp; Tải PDF</a>
+                <a th:if="${enrollmentResult.status == 'FINALIZED'}"
+                   th:href="@{|/api/enrollments/${enrollmentId}/download|}"
+                   class="btn btn-primary btn-lg">Tải PDF (đã ký)</a>
                 <a href="/enroll" class="btn btn-outline">Tạo đăng ký mới</a>
             </div>
         </div>

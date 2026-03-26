@@ -13,6 +13,8 @@ public interface MembershipEnrollmentRepository extends JpaRepository<Membership
 
     List<MembershipEnrollment> findByMember_IdOrderByCreatedAtDesc(Integer memberId);
 
+    List<MembershipEnrollment> findByMember_EmailOrderByCreatedAtDesc(String email);
+
     List<MembershipEnrollment> findByStatus(String status);
 
     @Query("SELECT e FROM MembershipEnrollment e LEFT JOIN FETCH e.addOns WHERE e.id = :id")

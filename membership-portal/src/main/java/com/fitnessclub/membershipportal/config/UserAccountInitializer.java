@@ -26,18 +26,25 @@ public class UserAccountInitializer {
         String rawPassword = "admin123";
         String encoded = passwordEncoder.encode(rawPassword);
 
-        UserAccount admin = userAccountRepository.findByUsername("admin").orElse(null);
+        // 1) Ensure NEW admin account: admin@gmail.com / admin123
+        String adminUsername = "admin@gmail.com";
+        UserAccount admin = userAccountRepository.findByUsername(adminUsername).orElse(null);
         if (admin == null) {
-            userAccountRepository.save(new UserAccount("admin", encoded, "ADMIN"));
-            return;
-        }
-
-        // If SQL seed created a plain-text password (or any other format), overwrite it.
-        if (admin.getPassword() == null || !admin.getPassword().startsWith("$2")) {
+            admin = new UserAccount(adminUsername, encoded, "ADMIN");
+        } else {
+            // Overwrite every startup so the demo credentials always work.
             admin.setPassword(encoded);
             admin.setRole("ADMIN");
-            userAccountRepository.save(admin);
         }
+        userAccountRepository.save(admin);
+
+        // 2) Optional: demote old legacy admin username "admin" to USER (so it won't grant ADMIN UI).
+        //    If the old row doesn't exist, ignore.
+        String legacyUsername = "admin";
+        userAccountRepository.findByUsername(legacyUsername).ifPresent(legacy -> {
+            legacy.setRole("USER");
+            userAccountRepository.save(legacy);
+        });
     }
 }
 

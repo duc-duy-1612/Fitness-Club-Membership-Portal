@@ -19,6 +19,7 @@ public class EnrollmentRequest {
     private String lastName;
     private LocalDate dob;
     private String healthGoals;
+    private String email;
 
     // Plan
     private PlanType planType;
@@ -81,6 +82,14 @@ public class EnrollmentRequest {
 
     public void setHealthGoals(String healthGoals) {
         this.healthGoals = healthGoals;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     public PlanType getPlanType() {

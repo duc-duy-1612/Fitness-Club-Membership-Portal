@@ -19,6 +19,7 @@ import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.util.List;
 import java.util.Optional;
+import java.util.Objects;
 
 @Service
 public class EnrollmentService {
@@ -144,10 +145,11 @@ public class EnrollmentService {
         if (enrollment == null) {
             throw new IllegalArgumentException("Enrollment not found: " + enrollmentId);
         }
-        if (!"FINALIZED".equals(enrollment.getStatus())) {
-            enrollment.setStatus("FINALIZED");
-            enrollmentRepository.save(enrollment);
+        if ("FINALIZED".equals(enrollment.getStatus())) {
+            throw new IllegalStateException("Enrollment already FINALIZED: " + enrollmentId);
         }
+        enrollment.setStatus("FINALIZED");
+        enrollmentRepository.save(enrollment);
 
         // Generate PDF with embedded signature, then persist file path to DB.
         byte[] pdfBytes = contractPdfService.generatePdfBytes(enrollment, signaturePng);
@@ -160,7 +162,58 @@ public class EnrollmentService {
         enrollment.setContractPdfPath(filePath.toString());
         enrollmentRepository.saveAndFlush(enrollment);
 
+        // After a successful signature, remove any duplicate DRAFT versions
+        // of the same contract configuration so user only sees the signed one.
+        deleteDuplicateDraftEnrollmentsAfterSigned(enrollment);
+
         return pdfBytes;
+    }
+
+    /**
+     * Download the PDF file stored in `contractPdfPath`.
+     * This is used by the User/Admin "Tải PDF" buttons so it returns the signed PDF.
+     */
+    @Transactional(readOnly = true)
+    public byte[] downloadStoredContractPdfBytes(Integer enrollmentId) throws Exception {
+        MembershipEnrollment enrollment = enrollmentRepository.findById(enrollmentId).orElse(null);
+        if (enrollment == null) {
+            throw new IllegalArgumentException("Enrollment not found: " + enrollmentId);
+        }
+        if (enrollment.getContractPdfPath() == null || enrollment.getContractPdfPath().isBlank()) {
+            throw new IllegalArgumentException("Contract PDF not found for enrollment: " + enrollmentId);
+        }
+        Path filePath = Paths.get(enrollment.getContractPdfPath());
+        if (!Files.exists(filePath)) {
+            throw new IllegalArgumentException("Contract PDF file missing: " + filePath);
+        }
+        return Files.readAllBytes(filePath);
+    }
+
+    private void deleteDuplicateDraftEnrollmentsAfterSigned(MembershipEnrollment signed) {
+        if (signed == null || signed.getMember() == null || signed.getMember().getId() == null) return;
+        if (signed.getPlanType() == null || signed.getBillingType() == null || signed.getContractDuration() == null) return;
+
+        Integer memberId = signed.getMember().getId();
+        var signedPlan = signed.getPlanType();
+        var signedBilling = signed.getBillingType();
+        var signedDuration = signed.getContractDuration();
+        BigDecimal signedTotal = signed.getTotalAmount();
+
+        List<MembershipEnrollment> all = enrollmentRepository.findByMember_IdOrderByCreatedAtDesc(memberId);
+        for (MembershipEnrollment other : all) {
+            if (other == null) continue;
+            if (Objects.equals(other.getId(), signed.getId())) continue;
+            if (!"DRAFT".equals(other.getStatus())) continue;
+
+            if (other.getPlanType() != signedPlan) continue;
+            if (other.getBillingType() != signedBilling) continue;
+            if (other.getContractDuration() != signedDuration) continue;
+
+            if (signedTotal == null || other.getTotalAmount() == null) continue;
+            if (other.getTotalAmount().compareTo(signedTotal) != 0) continue;
+
+            enrollmentRepository.delete(other);
+        }
     }
 
     private Member findOrCreateMember(EnrollmentRequest req) {
@@ -168,6 +221,9 @@ public class EnrollmentService {
             throw new IllegalArgumentException("Member first name, last name and DOB are required.");
         }
         Member member = new Member(req.getFirstName(), req.getLastName(), req.getDob(), req.getHealthGoals());
+        if (req.getEmail() != null && !req.getEmail().isBlank()) {
+            member.setEmail(req.getEmail().trim());
+        }
         return memberRepository.save(member);
     }
 
@@ -219,6 +275,7 @@ public class EnrollmentService {
                     }
                     dto.setTotalAmount(formatMoney(e.getTotalAmount()));
                     dto.setFinalizeUrl("/api/enrollments/" + id + "/finalize");
+                    dto.setStatus(e.getStatus());
                     return dto;
                 });
         if (fromJpa.isPresent()) return fromJpa;
@@ -233,7 +290,7 @@ public class EnrollmentService {
     /** Fallback: load enrollment + member by raw SQL when JPA returns empty. */
     private Optional<EnrollmentResultDto> loadEnrollmentResultBySql(Integer id) {
         try {
-            String mainSql = "SELECT e.id, e.member_id, e.plan_type, e.primary_branch_id, e.start_date, e.contract_duration, e.billing_type, e.total_amount, " +
+            String mainSql = "SELECT e.id, e.member_id, e.plan_type, e.primary_branch_id, e.start_date, e.contract_duration, e.billing_type, e.total_amount, e.status, " +
                     "m.first_name, m.last_name, b.name AS branch_name, b.city AS branch_city " +
                     "FROM membership_enrollments e " +
                     "JOIN members m ON e.member_id = m.id " +
@@ -259,6 +316,7 @@ public class EnrollmentService {
                         String billingTypeStr = rs.getString("billing_type");
                         dto.setBillingType(billingTypeLabel(billingTypeStr));
                         dto.setTotalAmount(formatMoney(rs.getBigDecimal("total_amount")));
+                        dto.setStatus(rs.getString("status"));
                         dto.setFinalizeUrl("/api/enrollments/" + id + "/finalize");
                         List<String> addOnLines = jdbcTemplate.query(
                                 "SELECT addon_type, quantity, unit_price FROM enrollment_addons WHERE enrollment_id = ?",

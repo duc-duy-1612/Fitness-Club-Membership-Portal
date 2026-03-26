@@ -116,11 +116,28 @@
                     <div id="signature-pad"><canvas id="signatureCanvas"></canvas></div>
                     <div class="signature-actions">
                         <button type="button" class="btn-clear" id="btnClear">Xóa chữ ký</button>
-                        <button type="button" class="btn-sign-pdf" id="btnSignPdf">Ký &amp; Tải PDF</button>
+                        <button type="button"
+                                class="btn-sign-pdf"
+                                id="btnSignPdf"
+                                th:disabled="${enrollmentResult.status == 'FINALIZED'}"
+                                th:text="${enrollmentResult.status == 'FINALIZED'} ? 'Đã ký (không thể ký lại)' : 'Ký &amp; Tải PDF'">
+                            Ký &amp; Tải PDF
+                        </button>
                     </div>
                 </div>
             </div>
-            <p style="text-align: center;"><a th:href="@{/contract-review/{id}(id=${enrollmentId})}" class="btn btn-outline">← Quay lại bản xem trước</a></p>
+            <div class="actions" style="justify-content: center; gap: 0.75rem; margin-top: 1rem;">
+                <button type="button"
+                        class="btn btn-primary btn-lg"
+                        id="btnComplete"
+                        th:disabled="${enrollmentResult.status == 'FINALIZED'}"
+                        style="min-width: 170px;">
+                    Hoàn thành
+                </button>
+                <a th:href="@{/contract-review/{id}(id=${enrollmentId})}" class="btn btn-outline btn-lg" style="min-width: 210px;">
+                    ← Quay lại bản xem trước
+                </a>
+            </div>
         </div>
         <div th:unless="${enrollmentResult}" class="result-card">
             <p>Không tìm thấy hợp đồng. <a href="/enroll">Đăng ký tại đây</a>.</p>
@@ -135,6 +152,7 @@
     <script th:inline="javascript">
         (function() {
             var enrollmentId = /*[[${enrollmentId}]]*/ null;
+            var contractStatus = /*[[${enrollmentResult != null ? enrollmentResult.status : ''}]]*/ '';
             if (!enrollmentId) return;
 
             var canvas = document.getElementById('signatureCanvas');
@@ -155,6 +173,10 @@
             });
 
             document.getElementById('btnSignPdf').addEventListener('click', function() {
+                if (contractStatus === 'FINALIZED') {
+                    alert('Bạn đã ký rồi. Không thể ký lại.');
+                    return;
+                }
                 if (signaturePad.isEmpty()) {
                     alert('Vui lòng ký vào ô bên trên trước khi tải PDF.');
                     return;
@@ -169,24 +191,54 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ signatureDataUrl: dataUrl })
                 }).then(function(res) {
+                    if (res.status === 403) {
+                        alert('Bạn đã ký thành công trước đó. Không thể ký lại nữa.');
+                        return null;
+                    }
                     if (!res.ok) throw new Error('Lỗi tạo PDF');
                     return res.blob();
                 }).then(function(blob) {
+                    if (!blob) return;
                     var a = document.createElement('a');
                     a.href = URL.createObjectURL(blob);
                     a.download = 'hop-dong-hoi-vien-' + enrollmentId + '.pdf';
                     a.click();
                     URL.revokeObjectURL(a.href);
                     btn.textContent = 'Ký thành công';
+                    contractStatus = 'FINALIZED';
+
+                    // Enable "Hoàn thành" after signing.
+                    var doneBtn = document.getElementById('btnComplete');
+                    if (doneBtn) {
+                        doneBtn.disabled = false;
+                        doneBtn.textContent = 'Hoàn thành';
+                    }
                 }).catch(function() {
                     alert('Không thể tạo PDF. Vui lòng thử lại.');
                 }).finally(function() {
                     btn.disabled = false;
-                    if (btn.textContent !== 'Ký thành công') {
+                    if (contractStatus === 'FINALIZED') {
+                        btn.disabled = true;
+                        btn.textContent = 'Đã ký (không thể ký lại)';
+                    } else if (btn.textContent !== 'Ký thành công') {
                         btn.textContent = 'Ký & Tải PDF';
                     }
                 });
             });
+
+            // If already finalized (server-side), make complete available.
+            var doneBtn = document.getElementById('btnComplete');
+            if (doneBtn) {
+                doneBtn.disabled = contractStatus !== 'FINALIZED';
+                doneBtn.addEventListener('click', function() {
+                    if (contractStatus !== 'FINALIZED') {
+                        alert('Bạn cần ký thành công trước khi bấm Hoàn thành.');
+                        return;
+                    }
+                    // Go back to homepage with same styling.
+                    window.location.href = '/';
+                });
+            }
         })();
     </script>
 </body>

@@ -48,26 +48,46 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            // Allow browser/PDF actions from UI without CSRF token.
+            // Allow JSON POSTs from UI without CSRF token.
             .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**"))
-            // Use HTTP Basic so API unauth requests return 401 (easy to screenshot).
+            // Keep HTTP Basic for API demo screenshots (401 vs 200)
             .httpBasic(Customizer.withDefaults())
+            .formLogin(form -> form
+                .loginPage("/login")
+                .defaultSuccessUrl("/post-login", true)
+                .permitAll()
+            )
+            .logout(logout -> logout
+                .logoutUrl("/logout")
+                .logoutSuccessUrl("/")
+                .permitAll()
+            )
+            .exceptionHandling(ex -> ex.accessDeniedPage("/access-denied"))
             .authorizeHttpRequests(auth -> auth
                 // Public pages
-                .requestMatchers("/", "/enroll", "/contract/**", "/contract-review/**", "/css/**").permitAll()
+                .requestMatchers("/", "/login", "/register", "/access-denied").permitAll()
+                .requestMatchers("/css/**", "/js/**", "/images/**", "/webjars/**").permitAll()
+                .requestMatchers("/enroll", "/enroll/**").permitAll()
 
-                // Allow signup/cart create
+                // Contract pages require login (for rubric screenshots)
+                .requestMatchers("/contract/**", "/contract-review/**").hasAnyRole("USER", "ADMIN")
+
+                // Role-based UI
+                .requestMatchers("/admin/**").hasRole("ADMIN")
+                .requestMatchers("/user/**").hasAnyRole("USER", "ADMIN")
+
+                // Public: create enrollment (cart)
                 .requestMatchers(HttpMethod.POST, "/api/enrollments").permitAll()
 
-                // Allow PDF signing + downloading endpoints (so the UI works without login)
-                .requestMatchers(HttpMethod.POST, "/api/enrollments/*/sign-pdf").permitAll()
-                .requestMatchers("/api/enrollments/*/finalize").permitAll()
+                // Contract finalize/sign should require login
+                .requestMatchers("/api/enrollments/*/finalize").hasAnyRole("USER", "ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/enrollments/*/sign-pdf").hasAnyRole("USER", "ADMIN")
 
-                // Protected REST endpoints (required for "Unauthorized access" security screenshots)
-                .requestMatchers(HttpMethod.GET, "/api/members", "/api/branches", "/api/enrollments/ids").authenticated()
-                .requestMatchers(HttpMethod.GET, "/api/enrollments/{id}").authenticated()
+                // Admin-only REST endpoints
+                .requestMatchers(HttpMethod.GET, "/api/members", "/api/branches", "/api/enrollments/ids").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/enrollments/{id}").hasRole("ADMIN")
 
-                .anyRequest().permitAll()
+                .anyRequest().authenticated()
             );
 
         return http.build();

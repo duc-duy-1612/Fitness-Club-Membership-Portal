@@ -19,6 +19,7 @@ public class EnrollmentResultDto {
     private List<String> addOnLines = new ArrayList<>();
     private String totalAmount;
     private String finalizeUrl;
+    private String status; // DRAFT, FINALIZED
 
     public String getMemberName() {
         return memberName;
@@ -90,5 +91,13 @@ public class EnrollmentResultDto {
 
     public void setFinalizeUrl(String finalizeUrl) {
         this.finalizeUrl = finalizeUrl;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 }

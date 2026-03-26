@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Không có quyền truy cập</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" th:href="@{/css/style.css}"/>
+  <style>
+    .panel { max-width: 760px; margin: 0 auto; }
+    .banner {
+      background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-card) 100%);
+      border-radius: var(--radius);
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: var(--shadow-lg);
+      padding: 2rem;
+      color: var(--white);
+    }
+    .banner h1 { margin: 0 0 .5rem; font-size: 1.9rem; font-weight: 800; letter-spacing: -0.02em; }
+    .banner p { margin: 0; color: rgba(255,255,255,0.78); max-width: 70ch; }
+    .cta-row { margin-top: 1.25rem; display:flex; gap: .75rem; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <a th:href="@{/}" class="site-logo">Fitness<span>Club</span></a>
+      <nav class="site-nav">
+        <a th:href="@{/}">Trang chủ</a>
+        <a th:href="@{/enroll}" class="cta">Đăng ký gói</a>
+        <a th:href="@{/admin}" sec:authorize="hasRole('ADMIN')">Admin</a>
+        <a th:href="@{/user}" sec:authorize="hasAnyRole('USER','ADMIN')">User</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="panel">
+      <div class="banner">
+        <h1>403 — Bạn không có quyền truy cập</h1>
+        <p>
+          Trang bạn vừa mở yêu cầu quyền <b>ADMIN</b> hoặc chỉ cho phép truy cập khi dữ liệu thuộc về tài khoản của bạn.
+          Hãy quay lại hoặc đăng nhập bằng tài khoản phù hợp.
+        </p>
+        <div class="cta-row">
+          <a class="btn btn-primary" th:href="@{/}">Về trang chủ</a>
+          <a class="btn btn-outline" th:href="@{/user}" sec:authorize="hasAnyRole('USER','ADMIN')">Khu vực User</a>
+          <a class="btn btn-outline" th:href="@{/admin}" sec:authorize="hasRole('ADMIN')">Admin Dashboard</a>
+          <a class="btn btn-secondary" th:href="@{/login}" sec:authorize="isAnonymous()">Đăng nhập</a>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">&copy; 2026 Fitness Club – Membership Portal.</div>
+  </footer>
+</body>
+</html>
+

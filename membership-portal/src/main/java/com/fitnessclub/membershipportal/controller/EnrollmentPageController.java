@@ -4,6 +4,7 @@ import com.fitnessclub.membershipportal.dto.EnrollmentRequest;
 import com.fitnessclub.membershipportal.entity.*;
 import com.fitnessclub.membershipportal.repository.BranchRepository;
 import com.fitnessclub.membershipportal.service.EnrollmentService;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -25,12 +26,15 @@ public class EnrollmentPageController {
     }
 
     @GetMapping
-    public String form(Model model) {
+    public String form(Authentication authentication, Model model) {
         model.addAttribute("branches", branchRepository.findAllByOrderByCityAscNameAsc());
         model.addAttribute("planTypes", PlanType.values());
         model.addAttribute("durations", ContractDuration.values());
         model.addAttribute("billingTypes", BillingType.values());
         model.addAttribute("addOnTypes", AddOnType.values());
+        String username = authentication != null ? authentication.getName() : "";
+        model.addAttribute("prefillEmail", username);
+        model.addAttribute("lockEmail", authentication != null && username != null && !username.isBlank());
         return "enroll";
     }
 
@@ -39,6 +43,7 @@ public class EnrollmentPageController {
                          @RequestParam String lastName,
                          @RequestParam String dob,
                          @RequestParam(required = false) String healthGoals,
+                         @RequestParam(required = false) String email,
                          @RequestParam String planType,
                          @RequestParam(required = false) Integer primaryBranchId,
                          @RequestParam String startDate,
@@ -46,12 +51,18 @@ public class EnrollmentPageController {
                          @RequestParam String billingType,
                          @RequestParam(defaultValue = "0") int personalTrainingQty,
                          @RequestParam(defaultValue = "0") int lockerRentalQty,
+                         Authentication authentication,
                          RedirectAttributes redirectAttributes) {
         EnrollmentRequest req = new EnrollmentRequest();
         req.setFirstName(firstName);
         req.setLastName(lastName);
         req.setDob(java.time.LocalDate.parse(dob));
         req.setHealthGoals(healthGoals != null ? healthGoals : "");
+        String normalizedEmail = email != null ? email.trim() : "";
+        if (normalizedEmail.isBlank() && authentication != null && authentication.getName() != null) {
+            normalizedEmail = authentication.getName();
+        }
+        req.setEmail(normalizedEmail);
         req.setPlanType(PlanType.valueOf(planType));
         req.setPrimaryBranchId(primaryBranchId);
         req.setStartDate(java.time.LocalDate.parse(startDate));

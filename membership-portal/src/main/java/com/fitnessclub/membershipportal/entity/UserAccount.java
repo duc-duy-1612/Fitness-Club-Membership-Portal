@@ -27,7 +27,7 @@ public class UserAccount {
     private String password;
 
     @Column(name = "role", nullable = false, length = 20)
-    private String role = "ADMIN";
+    private String role = "USER";
 
     public UserAccount() {
     }

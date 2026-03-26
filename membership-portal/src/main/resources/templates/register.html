@@ -22,6 +22,11 @@
     .muted { color: var(--text-muted); font-size: .92rem; }
     .link { color: var(--accent); font-weight: 800; text-decoration: none; }
     .link:hover { text-decoration: underline; }
+    .auth-body label { display:block; margin: .85rem 0 .35rem; font-weight: 700; color: var(--text); font-size: .95rem; }
+    .auth-body input { width: 100%; min-height: 46px; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: .7rem .85rem; font-size: .95rem; font-family: inherit; box-sizing: border-box; }
+    .auth-body input:focus { outline: none; border-color: rgba(249,115,22,.75); box-shadow: 0 0 0 3px rgba(249,115,22,.18); }
+    .profile-box { padding: 1rem; border: 1px solid var(--border); border-radius: var(--radius); background: #f8fafc; margin-top: .75rem; }
+    .profile-title { font-weight: 800; margin-bottom: .75rem; }
   </style>
 </head>
 <body>
@@ -47,15 +52,28 @@
         <div class="auth-body">
           <div th:if="${error != null}" class="alert alert-danger" th:text="${error}"></div>
           <div th:if="${success}" class="alert alert-success">
-            Đăng ký thành công. Bạn có thể đăng nhập ngay.
+            Đăng ký thành công. Đang chuyển sang trang đăng nhập...
           </div>
 
           <form th:action="@{/register}" method="post">
             <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
 
-            <label>Username</label>
-            <input name="username" required placeholder="Ví dụ: you@email.com" />
-            <div class="muted">Nên dùng email để tiện khớp với email khi enroll.</div>
+            <label>Email (username)</label>
+            <input type="email" name="username" required placeholder="Ví dụ: you@gmail.com" />
+            <div class="muted">Email này sẽ tự đồng bộ với thông tin hội viên và dùng để đăng nhập.</div>
+
+            <div class="profile-box">
+              <div class="profile-title">Thông tin cá nhân</div>
+
+              <label>Họ</label>
+              <input name="firstName" required placeholder="Ví dụ: Nguyễn" />
+
+              <label>Tên</label>
+              <input name="lastName" required placeholder="Ví dụ: Văn A" />
+
+              <label>Ngày sinh</label>
+              <input type="date" name="dob" required />
+            </div>
 
             <label>Password</label>
             <input type="password" name="password" minlength="6" required placeholder="Tối thiểu 6 ký tự" />
@@ -80,6 +98,11 @@
   <footer class="site-footer">
     <div class="container">&copy; 2026 Fitness Club – Membership Portal.</div>
   </footer>
+
+  <script th:if="${success}">
+    alert('Đăng ký tài khoản thành công!');
+    window.location.href = '/login';
+  </script>
 </body>
 </html>
 

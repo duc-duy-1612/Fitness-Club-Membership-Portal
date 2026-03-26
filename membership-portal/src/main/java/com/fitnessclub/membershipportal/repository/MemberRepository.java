@@ -5,6 +5,8 @@ import org.springframework.stereotype.Repository;
 
 import com.fitnessclub.membershipportal.entity.Member;
 
+import java.util.Optional;
+
 @Repository
 public interface MemberRepository extends JpaRepository<Member, Integer> {
     
@@ -12,5 +14,7 @@ public interface MemberRepository extends JpaRepository<Member, Integer> {
     // các hàm như: findAll() để lấy toàn bộ danh sách, findById() để tìm theo ID,
     // save() để thêm mới/cập nhật, deleteById() để xóa...
     // Bạn chưa cần viết thêm bất kỳ logic nào ở đây lúc này!
+
+    Optional<Member> findFirstByEmailIgnoreCase(String email);
 
 }

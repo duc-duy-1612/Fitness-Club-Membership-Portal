@@ -106,6 +106,10 @@
 
                 <div class="section">
                     <div class="section-title">Tổng thanh toán</div>
+                    <div class="row" th:if="${enrollmentResult.monthlyAmount != null}">
+                        <span class="label">Số tiền phải thanh toán hằng tháng:</span>
+                        <span class="value" th:text="${enrollmentResult.monthlyAmount}">—</span>
+                    </div>
                     <div class="row"><span class="label">Tổng tiền:</span><span class="value" th:text="${enrollmentResult.totalAmount}">—</span></div>
                 </div>
 

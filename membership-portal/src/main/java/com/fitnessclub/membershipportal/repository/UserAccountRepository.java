@@ -9,6 +9,8 @@ public interface UserAccountRepository extends JpaRepository<UserAccount, Intege
 
     Optional<UserAccount> findByUsername(String username);
 
+    Optional<UserAccount> findByMember_Id(Integer memberId);
+
     boolean existsByUsername(String username);
 }
 

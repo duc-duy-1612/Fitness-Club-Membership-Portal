@@ -38,6 +38,10 @@
                         <li th:each="line : ${enrollmentResult.addOnLines}" th:text="${line}">Add-on line</li>
                     </ul>
                 </div>
+                <p th:if="${enrollmentResult.monthlyAmount != null}">
+                    <strong>Số tiền phải thanh toán hằng tháng:</strong>
+                    <span th:text="${enrollmentResult.monthlyAmount}">0 đ</span>
+                </p>
                 <p><strong>Tổng tiền:</strong> <span th:text="${enrollmentResult.totalAmount}">Total</span></p>
             </div>
 

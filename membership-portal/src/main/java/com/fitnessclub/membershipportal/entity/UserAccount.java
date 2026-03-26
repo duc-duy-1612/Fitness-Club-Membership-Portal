@@ -1,10 +1,13 @@
 package com.fitnessclub.membershipportal.entity;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 
 /**
@@ -28,6 +31,10 @@ public class UserAccount {
 
     @Column(name = "role", nullable = false, length = 20)
     private String role = "USER";
+
+    @OneToOne(cascade = CascadeType.ALL, optional = true)
+    @JoinColumn(name = "member_id")
+    private Member member;
 
     public UserAccount() {
     }
@@ -68,6 +75,14 @@ public class UserAccount {
 
     public void setRole(String role) {
         this.role = role;
+    }
+
+    public Member getMember() {
+        return member;
+    }
+
+    public void setMember(Member member) {
+        this.member = member;
     }
 }
 

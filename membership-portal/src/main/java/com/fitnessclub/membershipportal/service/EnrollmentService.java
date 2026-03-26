@@ -220,9 +220,21 @@ public class EnrollmentService {
         if (req.getFirstName() == null || req.getLastName() == null || req.getDob() == null) {
             throw new IllegalArgumentException("Member first name, last name and DOB are required.");
         }
+        String email = req.getEmail() != null ? req.getEmail().trim() : "";
+        if (!email.isBlank()) {
+            var existing = memberRepository.findFirstByEmailIgnoreCase(email).orElse(null);
+            if (existing != null) {
+                if (req.getHealthGoals() != null && !req.getHealthGoals().isBlank()) {
+                    existing.setHealthGoals(req.getHealthGoals().trim());
+                    return memberRepository.save(existing);
+                }
+                return existing;
+            }
+        }
+
         Member member = new Member(req.getFirstName(), req.getLastName(), req.getDob(), req.getHealthGoals());
-        if (req.getEmail() != null && !req.getEmail().isBlank()) {
-            member.setEmail(req.getEmail().trim());
+        if (!email.isBlank()) {
+            member.setEmail(email);
         }
         return memberRepository.save(member);
     }
@@ -273,7 +285,19 @@ public class EnrollmentService {
                             dto.getAddOnLines().add(line);
                         }
                     }
-                    dto.setTotalAmount(formatMoney(e.getTotalAmount()));
+                    if (e.getBillingType() == BillingType.MONTHLY) {
+                        BigDecimal monthly = e.getTotalAmount() != null ? e.getTotalAmount() : BigDecimal.ZERO;
+                        int months = switch (e.getContractDuration()) {
+                            case MONTHLY -> 1;
+                            case SIX_MONTH -> 6;
+                            case ANNUAL -> 12;
+                        };
+                        BigDecimal fullTotal = monthly.multiply(BigDecimal.valueOf(months));
+                        dto.setMonthlyAmount(formatMoney(monthly));
+                        dto.setTotalAmount(formatMoney(fullTotal));
+                    } else {
+                        dto.setTotalAmount(formatMoney(e.getTotalAmount()));
+                    }
                     dto.setFinalizeUrl("/api/enrollments/" + id + "/finalize");
                     dto.setStatus(e.getStatus());
                     return dto;
@@ -315,7 +339,21 @@ public class EnrollmentService {
                         dto.setContractDuration(contractDurationLabel(contractDuration));
                         String billingTypeStr = rs.getString("billing_type");
                         dto.setBillingType(billingTypeLabel(billingTypeStr));
-                        dto.setTotalAmount(formatMoney(rs.getBigDecimal("total_amount")));
+                        BigDecimal totalAmount = rs.getBigDecimal("total_amount");
+                        if ("MONTHLY".equals(billingTypeStr)) {
+                            BigDecimal monthly = totalAmount != null ? totalAmount : BigDecimal.ZERO;
+                            int months = switch (contractDuration) {
+                                case "MONTHLY" -> 1;
+                                case "SIX_MONTH" -> 6;
+                                case "ANNUAL" -> 12;
+                                default -> 1;
+                            };
+                            BigDecimal fullTotal = monthly.multiply(BigDecimal.valueOf(months));
+                            dto.setMonthlyAmount(formatMoney(monthly));
+                            dto.setTotalAmount(formatMoney(fullTotal));
+                        } else {
+                            dto.setTotalAmount(formatMoney(totalAmount));
+                        }
                         dto.setStatus(rs.getString("status"));
                         dto.setFinalizeUrl("/api/enrollments/" + id + "/finalize");
                         List<String> addOnLines = jdbcTemplate.query(

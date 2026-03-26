@@ -51,6 +51,39 @@ public class AdminUiController {
         return "admin/dashboard";
     }
 
+    @PostMapping("/members/{id}/delete")
+    @Transactional
+    public String deleteMember(@PathVariable Integer id, RedirectAttributes redirectAttributes) {
+        var mOpt = memberRepository.findById(id);
+        if (mOpt.isEmpty()) {
+            redirectAttributes.addFlashAttribute("msg", "Không tìm thấy member id=" + id);
+            return "redirect:/admin";
+        }
+
+        // Unlink user account if this member is linked to a login account.
+        userAccountRepository.findByMember_Id(id).ifPresent(ua -> {
+            ua.setMember(null);
+            userAccountRepository.save(ua);
+        });
+
+        // Remove enrollments first to avoid FK constraints across DB configurations.
+        var enrollments = enrollmentRepository.findByMember_IdOrderByCreatedAtDesc(id);
+        if (!enrollments.isEmpty()) {
+            enrollmentRepository.deleteAll(enrollments);
+        }
+
+        memberRepository.delete(mOpt.get());
+        redirectAttributes.addFlashAttribute("msg", "Đã xóa member id=" + id + " và dữ liệu liên quan.");
+        return "redirect:/admin";
+    }
+
+    // Fallback for browsers/UI flows that navigate to delete URL by GET.
+    @GetMapping("/members/{id}/delete")
+    @Transactional
+    public String deleteMemberByGet(@PathVariable Integer id, RedirectAttributes redirectAttributes) {
+        return deleteMember(id, redirectAttributes);
+    }
+
     @GetMapping("/users")
     public String users(Model model) {
         model.addAttribute("users", userAccountRepository.findAll());

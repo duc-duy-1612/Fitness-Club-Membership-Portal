@@ -1,7 +1,5 @@
 package com.fitnessclub.membershipportal.dto;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -18,6 +16,7 @@ public class EnrollmentResultDto {
     private String billingType;
     private List<String> addOnLines = new ArrayList<>();
     private String totalAmount;
+    private String monthlyAmount;
     private String finalizeUrl;
     private String status; // DRAFT, FINALIZED
 
@@ -83,6 +82,14 @@ public class EnrollmentResultDto {
 
     public void setTotalAmount(String totalAmount) {
         this.totalAmount = totalAmount;
+    }
+
+    public String getMonthlyAmount() {
+        return monthlyAmount;
+    }
+
+    public void setMonthlyAmount(String monthlyAmount) {
+        this.monthlyAmount = monthlyAmount;
     }
 
     public String getFinalizeUrl() {

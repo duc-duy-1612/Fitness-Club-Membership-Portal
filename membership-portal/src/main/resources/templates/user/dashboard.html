@@ -12,6 +12,9 @@
     .pill { display:inline-flex; align-items:center; gap:.5rem; padding:.4rem .7rem; border-radius:999px; background: rgba(249,115,22,.12); color: var(--accent); border:1px solid rgba(249,115,22,.35); font-weight:700; font-size:.85rem; }
     .btn-link { background: transparent; border: none; padding: 0; color: rgba(255,255,255,0.9); cursor: pointer; font: inherit; }
     .btn-link:hover { color: var(--white); text-decoration: underline; }
+    .nav-icon { display:inline-flex; align-items:center; justify-content:center; width: 44px; height: 44px; border-radius: 12px; border: 1px solid rgba(249,115,22,.45); background: rgba(249,115,22,.10); color: rgba(255,255,255,0.95); box-shadow: 0 10px 24px rgba(2,6,23,.25); }
+    .nav-icon:hover { background: rgba(249,115,22,.18); border-color: rgba(249,115,22,.75); }
+    .nav-icon svg { width: 22px; height: 22px; }
     .hero-mini { padding: 1.5rem 1.25rem; border-radius: var(--radius); background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-card) 100%); box-shadow: var(--shadow-lg); border: 1px solid rgba(255,255,255,0.08); }
     .hero-mini h1 { margin: 0 0 .25rem; font-size: 1.7rem; font-weight: 800; letter-spacing:-0.02em; color: var(--white); }
     .hero-mini p { margin: 0; color: rgba(255,255,255,0.8); font-size: .95rem; max-width: 64ch; }
@@ -39,6 +42,12 @@
         <a th:href="@{/enroll}" class="cta">Đăng ký gói</a>
         <a th:href="@{/admin}" sec:authorize="hasRole('ADMIN')">Admin</a>
         <a th:href="@{/user}" sec:authorize="hasAnyRole('USER','ADMIN')">User</a>
+        <a th:href="@{/user/settings}" class="nav-icon" sec:authorize="hasAnyRole('USER','ADMIN')" title="Cài đặt">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M19.4 15a8.2 8.2 0 0 0 .1-1 8.2 8.2 0 0 0-.1-1l2-1.5-2-3.5-2.4 1a8.3 8.3 0 0 0-1.7-1l-.4-2.6H10l-.4 2.6a8.3 8.3 0 0 0-1.7 1l-2.4-1-2 3.5 2 1.5a8.2 8.2 0 0 0-.1 1c0 .3 0 .7.1 1l-2 1.5 2 3.5 2.4-1c.5.4 1.1.7 1.7 1l.4 2.6h4l.4-2.6c.6-.3 1.2-.6 1.7-1l2.4 1 2-3.5-2-1.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </a>
         <span class="pill" th:text="${username}">user</span>
         <form th:action="@{/logout}" method="post" sec:authorize="isAuthenticated()" style="display:inline;">
           <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>

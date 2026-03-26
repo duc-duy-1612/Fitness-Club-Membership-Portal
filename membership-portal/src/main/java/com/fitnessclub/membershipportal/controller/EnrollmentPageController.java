@@ -3,6 +3,7 @@ package com.fitnessclub.membershipportal.controller;
 import com.fitnessclub.membershipportal.dto.EnrollmentRequest;
 import com.fitnessclub.membershipportal.entity.*;
 import com.fitnessclub.membershipportal.repository.BranchRepository;
+import com.fitnessclub.membershipportal.repository.UserAccountRepository;
 import com.fitnessclub.membershipportal.service.EnrollmentService;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
@@ -19,10 +20,12 @@ public class EnrollmentPageController {
 
     private final BranchRepository branchRepository;
     private final EnrollmentService enrollmentService;
+    private final UserAccountRepository userAccountRepository;
 
-    public EnrollmentPageController(BranchRepository branchRepository, EnrollmentService enrollmentService) {
+    public EnrollmentPageController(BranchRepository branchRepository, EnrollmentService enrollmentService, UserAccountRepository userAccountRepository) {
         this.branchRepository = branchRepository;
         this.enrollmentService = enrollmentService;
+        this.userAccountRepository = userAccountRepository;
     }
 
     @GetMapping
@@ -34,7 +37,22 @@ public class EnrollmentPageController {
         model.addAttribute("addOnTypes", AddOnType.values());
         String username = authentication != null ? authentication.getName() : "";
         model.addAttribute("prefillEmail", username);
-        model.addAttribute("lockEmail", authentication != null && username != null && !username.isBlank());
+
+        boolean lockPersonal = false;
+        if (authentication != null && username != null && !username.isBlank()) {
+            var account = userAccountRepository.findByUsername(username).orElse(null);
+            if (account != null && account.getMember() != null) {
+                var m = account.getMember();
+                model.addAttribute("prefillFirstName", m.getFirstName());
+                model.addAttribute("prefillLastName", m.getLastName());
+                model.addAttribute("prefillDob", m.getDob() != null ? m.getDob().toString() : "");
+                model.addAttribute("prefillHealthGoals", m.getHealthGoals());
+                model.addAttribute("prefillEmail", m.getEmail() != null ? m.getEmail() : username);
+                lockPersonal = true;
+            }
+        }
+
+        model.addAttribute("lockPersonal", lockPersonal);
         return "enroll";
     }
 
@@ -54,15 +72,35 @@ public class EnrollmentPageController {
                          Authentication authentication,
                          RedirectAttributes redirectAttributes) {
         EnrollmentRequest req = new EnrollmentRequest();
-        req.setFirstName(firstName);
-        req.setLastName(lastName);
-        req.setDob(java.time.LocalDate.parse(dob));
-        req.setHealthGoals(healthGoals != null ? healthGoals : "");
-        String normalizedEmail = email != null ? email.trim() : "";
-        if (normalizedEmail.isBlank() && authentication != null && authentication.getName() != null) {
-            normalizedEmail = authentication.getName();
+
+        if (authentication != null && authentication.getName() != null && !authentication.getName().isBlank()) {
+            var account = userAccountRepository.findByUsername(authentication.getName()).orElse(null);
+            if (account != null && account.getMember() != null) {
+                // Locked personal info: ignore any incoming request params, always load from DB.
+                var m = account.getMember();
+                req.setFirstName(m.getFirstName());
+                req.setLastName(m.getLastName());
+                req.setDob(m.getDob());
+                String goalsInput = healthGoals != null ? healthGoals.trim() : "";
+                req.setHealthGoals(!goalsInput.isBlank() ? goalsInput : (m.getHealthGoals() != null ? m.getHealthGoals() : ""));
+                req.setEmail(m.getEmail() != null && !m.getEmail().isBlank() ? m.getEmail().trim() : authentication.getName());
+            } else {
+                req.setFirstName(firstName);
+                req.setLastName(lastName);
+                req.setDob(java.time.LocalDate.parse(dob));
+                req.setHealthGoals(healthGoals != null ? healthGoals : "");
+                String normalizedEmail = email != null ? email.trim() : "";
+                if (normalizedEmail.isBlank()) normalizedEmail = authentication.getName();
+                req.setEmail(normalizedEmail);
+            }
+        } else {
+            req.setFirstName(firstName);
+            req.setLastName(lastName);
+            req.setDob(java.time.LocalDate.parse(dob));
+            req.setHealthGoals(healthGoals != null ? healthGoals : "");
+            req.setEmail(email != null ? email.trim() : "");
         }
-        req.setEmail(normalizedEmail);
+
         req.setPlanType(PlanType.valueOf(planType));
         req.setPrimaryBranchId(primaryBranchId);
         req.setStartDate(java.time.LocalDate.parse(startDate));

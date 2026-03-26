@@ -38,23 +38,30 @@
                 <div class="form-section">
                     <h2>Thông tin cá nhân</h2>
                     <label>Họ *</label>
-                    <input type="text" name="firstName" required placeholder="Ví dụ: Nguyễn"/>
+                    <input type="text" name="firstName" required placeholder="Ví dụ: Nguyễn"
+                           th:value="${prefillFirstName}"
+                           th:readonly="${lockPersonal}" />
 
                     <label>Tên *</label>
-                    <input type="text" name="lastName" required placeholder="Ví dụ: Văn A"/>
+                    <input type="text" name="lastName" required placeholder="Ví dụ: Văn A"
+                           th:value="${prefillLastName}"
+                           th:readonly="${lockPersonal}" />
 
                     <label>Ngày sinh *</label>
-                    <input type="date" name="dob" required/>
+                    <input type="date" name="dob" required
+                           th:value="${prefillDob}"
+                           th:readonly="${lockPersonal}" />
 
                     <label>Email (khuyến nghị)</label>
                     <input type="email"
                            name="email"
                            placeholder="Ví dụ: you@email.com"
                            th:value="${prefillEmail}"
-                           th:readonly="${lockEmail}" />
+                           th:readonly="${lockPersonal}" />
 
                     <label>Mục tiêu sức khỏe</label>
-                    <input type="text" name="healthGoals" placeholder="Ví dụ: Giảm cân, tăng cơ, rèn sức bền"/>
+                    <input type="text" name="healthGoals" placeholder="Ví dụ: Giảm cân, tăng cơ, rèn sức bền"
+                           th:value="${prefillHealthGoals}" />
                 </div>
 
                 <div class="form-section">
@@ -154,7 +161,7 @@
                 if (billingType === 'MONTHLY') {
                     var fullCourseTotal = planTotal + ptTotal + lockerTotal;
                     totalK = fullCourseTotal / months;
-                    note = 'Số tiền phải trả mỗi tháng';
+                    note = 'Số tiền phải thanh toán hằng tháng: ' + formatMoney(totalK);
                 } else {
                     totalK = planTotal + ptTotal + lockerTotal;
                     note = 'Thanh toán một lần trọn gói';
